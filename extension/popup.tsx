@@ -55,10 +55,24 @@ function Popup() {
     checkForChanges(url, value, tags);
   };
 
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && hasUnsavedChanges && savedRecordId) {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
   const handleUrlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setUrl(value);
     checkForChanges(value, title, tags);
+  };
+
+  const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && hasUnsavedChanges && savedRecordId) {
+      e.preventDefault();
+      handleSave();
+    }
   };
 
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,23 +97,33 @@ function Popup() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions) return;
-    
-    if (e.key === 'ArrowDown') {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showSuggestions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveSuggestion(prev =>
+          prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+        );
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveSuggestion(prev => prev > 0 ? prev - 1 : -1);
+        return;
+      } else if (e.key === 'Enter' && activeSuggestion >= 0) {
+        e.preventDefault();
+        selectSuggestion(filteredSuggestions[activeSuggestion]);
+        return;
+      } else if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        setActiveSuggestion(-1);
+        return;
+      }
+    }
+
+    // Handle Enter for saving when there are unsaved changes
+    if (e.key === 'Enter' && hasUnsavedChanges && savedRecordId) {
       e.preventDefault();
-      setActiveSuggestion(prev => 
-        prev < filteredSuggestions.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveSuggestion(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter' && activeSuggestion >= 0) {
-      e.preventDefault();
-      selectSuggestion(filteredSuggestions[activeSuggestion]);
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-      setActiveSuggestion(-1);
+      handleSave();
     }
   };
 
@@ -187,27 +211,14 @@ function Popup() {
 
   // Handle delete
   const handleDelete = async () => {
-    console.log('Delete button clicked, savedRecordId:', savedRecordId);
-    
     if (!savedRecordId) {
-      console.log('No savedRecordId, returning early');
       return;
     }
 
-    const confirmed = confirm('Are you sure you want to delete this entry from Airtable?');
-    console.log('User confirmed deletion:', confirmed);
-    
-    if (!confirmed) {
-      return;
-    }
-
-    console.log('Starting delete process...');
     setIsDeleting(true);
 
     try {
-      console.log('Calling deleteEntry with recordId:', savedRecordId);
       await deleteEntry(savedRecordId);
-      console.log('Delete successful, resetting form state');
       // Reset the form state after successful deletion
       setSavedRecordId(null);
       setHasUnsavedChanges(false);
@@ -250,25 +261,26 @@ function Popup() {
         }}>
           Title:
         </label>
-        <textarea
-          value={title}
-          onChange={handleTitleChange}
-          rows={2}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            resize: 'vertical',
-            minHeight: '52px',
-            lineHeight: '1.4',
-            boxSizing: 'border-box',
-            wordWrap: 'break-word',
-            overflowWrap: 'break-word'
-          }}
-        />
+                            <textarea
+            value={title}
+                      onChange={handleTitleChange}
+                      onKeyDown={handleTitleKeyDown}
+                      rows={2}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        minHeight: '52px',
+                        lineHeight: '1.4',
+                        boxSizing: 'border-box',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}
+                    />
       </div>
 
       <div style={{ marginBottom: '12px' }}>
@@ -281,24 +293,25 @@ function Popup() {
         }}>
           URL:
         </label>
-        <textarea
-          value={url}
-          onChange={handleUrlChange}
-          rows={2}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            resize: 'vertical',
-            minHeight: '44px',
-            lineHeight: '1.4',
-            boxSizing: 'border-box',
-            wordBreak: 'break-all'
-          }}
-        />
+                            <textarea
+            value={url}
+                      onChange={handleUrlChange}
+                      onKeyDown={handleUrlKeyDown}
+                      rows={2}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        minHeight: '44px',
+                        lineHeight: '1.4',
+                        boxSizing: 'border-box',
+                        wordBreak: 'break-all'
+                      }}
+                    />
       </div>
 
       <div style={{ marginBottom: '16px', position: 'relative' }}>
@@ -374,49 +387,56 @@ function Popup() {
         <button
           onClick={handleSave}
           disabled={isLoading || (!hasUnsavedChanges && !!savedRecordId)}
-          style={{
-            flex: '1',
-            padding: '12px 16px',
-            backgroundColor: isLoading ? '#9ca3af' : 
-                            (!hasUnsavedChanges && savedRecordId) ? '#10b981' : 
-                            hasUnsavedChanges ? '#f59e0b' : '#2563eb',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: (isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s',
-            opacity: (!hasUnsavedChanges && savedRecordId) ? 0.7 : 1
-          }}
-        >
-          {isLoading ? 'Saving...' : 
-           (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
-           hasUnsavedChanges ? 'Update Changes' : 'Save to Airtable'}
+                                style={{
+                        flex: '1',
+                        padding: '12px 16px',
+                        backgroundColor: isLoading ? '#9ca3af' :
+                                        (!hasUnsavedChanges && savedRecordId) ? '#10b981' :
+                                        hasUnsavedChanges ? '#2563eb' : '#2563eb',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: (isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
+                        transition: 'background-color 0.2s',
+                        opacity: (!hasUnsavedChanges && savedRecordId) ? 0.7 : 1
+                      }}
+                    >
+                      {isLoading ? 'Saving...' :
+                       (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
+                       hasUnsavedChanges ? 'Update' : 'Save to Airtable'}
         </button>
         
         {savedRecordId && (
           <button
             onClick={handleDelete}
             disabled={isDeleting || isLoading}
-            title="Delete entry from Airtable"
+            title="Delete from Airtable"
             style={{
               width: '36px',
               height: '44px',
               padding: '0',
-              backgroundColor: isDeleting ? '#9ca3af' : '#dc2626',
-              color: 'white',
-              border: 'none',
+              backgroundColor: isDeleting ? '#f3f4f6' : '#ffffff',
+              color: isDeleting ? '#9ca3af' : '#dc2626',
+              border: `1px solid ${isDeleting ? '#d1d5db' : '#dc2626'}`,
               borderRadius: '6px',
-              fontSize: '16px',
+              fontSize: '14px',
               cursor: (isDeleting || isLoading) ? 'not-allowed' : 'pointer',
-              transition: 'background-color 0.2s',
+              transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}
           >
-            {isDeleting ? '...' : '🗑️'}
+            {isDeleting ? '...' : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3,6 5,6 21,6"></polyline>
+                <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            )}
           </button>
         )}
       </div>

@@ -36,8 +36,8 @@ interface CreateRecord {
   Name: string;
   Link: string;
   Tags: string[];
-  Status: string;
-  Type: string;
+  Status?: string;
+  Type?: string;
 }
 
 // Function to detect content type based on URL

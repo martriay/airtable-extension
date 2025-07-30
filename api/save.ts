@@ -58,9 +58,7 @@ export default async function handler(req: any, res: any) {
         const contentType = detectContentType(canonical);
         const updatedRecord = await update(existingRecord.id, {
           Name: body.title,
-          Tags: body.tags,
-          Status: 'To do',
-          Type: contentType
+          Tags: body.tags
         });
         
         const response: SaveResponse = {
@@ -85,13 +83,11 @@ export default async function handler(req: any, res: any) {
     // Detect content type and set status
     const contentType = detectContentType(canonical);
     
-    // Create record with Status and Type fields
+    // Create record without Status and Type fields temporarily for debugging
     const newRecord = await create({
       Name: body.title,
       Link: canonical,
-      Tags: body.tags,
-      Status: 'To do',
-      Type: contentType
+      Tags: body.tags
     });
 
     const response: SaveResponse = {

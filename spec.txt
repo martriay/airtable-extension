@@ -1,4 +1,4 @@
-APP SPEC — "Save to Airtable"  (Current Implementation v2.1)
+APP SPEC — "Save to Airtable" (Current Implementation v2.2)
 
 ──────────────────────────────────
 0. Goal
@@ -9,7 +9,7 @@ APP SPEC — "Save to Airtable"  (Current Implementation v2.1)
 • Real-time change tracking with conditional updates.
 • Form population from existing entries for easy editing.
 • Button-only feedback system (no toast messages).
-• Delete functionality with confirmation dialog.
+• Enter key support for quick updates.
 
 ──────────────────────────────────
 1. Airtable Schema
@@ -22,117 +22,46 @@ Field         Type            Required    Filled by app   Value
 Name          Single-line     yes         yes             page title
 Link          URL             yes         yes             canonical URL
 Tags          Multiple-select no          yes             array of tag strings
-Status        Single-select   no          yes             "To do" (default for new entries)
-Type          Single-select   no          yes             auto-detected content type
+Status        Single-select   no          optional        "To do" (when supported)
+Type          Single-select   no          optional        auto-detected content type
 
-Required Single-Select Options:
+Optional Single-Select Options (if fields exist):
 Status: "To do", "In progress", "Done"
 Type: "Twitter thread", "Reddit thread", "Video", "Article"
 
-Content Type Detection Rules (by hostname):
-• twitter.com, x.com → "Twitter thread"
-• reddit.com → "Reddit thread"  
-• youtube.com, vimeo.com, twitch.tv, tiktok.com → "Video"
-• all others → "Article"
+Note: Status and Type fields are optional to handle tables without these fields.
 
 ──────────────────────────────────
 2. Backend API
 ──────────────────────────────────
 Platform: Vercel Serverless Functions
-Environment Variables:
-  AIRTABLE_PAT          - Personal Access Token
-  AIRTABLE_BASE_ID      - Base identifier  
-  AIRTABLE_TABLE=Units  - Table name (optional, defaults to "Units")
+Env:
+  AIRTABLE_PAT
+  AIRTABLE_BASE_ID  
+  AIRTABLE_TABLE=Units
 
-Base URL: https://airtable-extension-martriays-projects.vercel.app
+POST /api/save  body:
+{
+  "url":   "<raw url>",
+  "title": "<page title>",
+  "tags":  ["tag1","tag2"],
+  "source":"Extension",
+  "forceUpdate": boolean (optional),
+  "recordId": "recXXXXXX" (optional)
+}
+Returns: {duplicate:boolean, id?:string, existingId?:string, existingData?:{title:string,tags:string[]}, error?:string, details?:string}
 
-┌─────────────────────────────────────────────────────────────────────┐
-│ POST /api/save                                                      │
-├─────────────────────────────────────────────────────────────────────┤
-│ Purpose: Save or update a record in Airtable                       │
-│                                                                     │
-│ Request Body:                                                       │
-│ {                                                                   │
-│   "url": "https://example.com/page",                               │
-│   "title": "Page Title",                                           │
-│   "tags": ["tag1", "tag2"],                                        │
-│   "source": "Extension" | "iOS Shortcut",                          │
-│   "forceUpdate": boolean (optional),                               │
-│   "recordId": "recXXXXXXXXXXXXXX" (optional)                       │
-│ }                                                                   │
-│                                                                     │
-│ Response (New Entry):                                               │
-│ {                                                                   │
-│   "duplicate": false,                                               │
-│   "id": "recXXXXXXXXXXXXXX"                                         │
-│ }                                                                   │
-│                                                                     │
-│ Response (Duplicate Found, No Force Update):                       │
-│ {                                                                   │
-│   "duplicate": true,                                                │
-│   "existingId": "recXXXXXXXXXXXXXX",                                │
-│   "existingData": {                                                 │
-│     "title": "Existing Title",                                     │
-│     "tags": ["existing", "tags"]                                   │
-│   }                                                                 │
-│ }                                                                   │
-│                                                                     │
-│ Response (Updated Existing):                                        │
-│ {                                                                   │
-│   "duplicate": true,                                                │
-│   "existingId": "recXXXXXXXXXXXXXX"                                 │
-│ }                                                                   │
-│                                                                     │
-│ Error Response:                                                     │
-│ {                                                                   │
-│   "error": "Error message",                                        │
-│   "details": "Detailed error info"                                 │
-│ }                                                                   │
-└─────────────────────────────────────────────────────────────────────┘
+GET /api/tags
+Returns: {"tags": ["tag1","tag2"...], "count": N}
 
-┌─────────────────────────────────────────────────────────────────────┐
-│ GET /api/tags                                                       │
-├─────────────────────────────────────────────────────────────────────┤
-│ Purpose: Fetch all unique tags from Airtable for typeahead         │
-│                                                                     │
-│ Response:                                                           │
-│ {                                                                   │
-│   "tags": ["tag1", "tag2", "tag3"],                                │
-│   "count": 3                                                       │
-│ }                                                                   │
-│                                                                     │
-│ Error Response:                                                     │
-│ {                                                                   │
-│   "error": "Error message",                                        │
-│   "details": "Detailed error info"                                 │
-│ }                                                                   │
-└─────────────────────────────────────────────────────────────────────┘
+DELETE /api/delete body:
+{
+  "recordId": "recXXXXXX"
+}
+Returns: {"success": boolean, "error"?: string, "details"?: string}
 
-┌─────────────────────────────────────────────────────────────────────┐
-│ DELETE /api/delete                                                  │
-├─────────────────────────────────────────────────────────────────────┤
-│ Purpose: Delete a record from Airtable                             │
-│                                                                     │
-│ Request Body:                                                       │
-│ {                                                                   │
-│   "recordId": "recXXXXXXXXXXXXXX"                                   │
-│ }                                                                   │
-│                                                                     │
-│ Response:                                                           │
-│ {                                                                   │
-│   "success": true                                                   │
-│ }                                                                   │
-│                                                                     │
-│ Error Response:                                                     │
-│ {                                                                   │
-│   "success": false,                                                 │
-│   "error": "Error message",                                        │
-│   "details": "Detailed error info"                                 │
-│ }                                                                   │
-└─────────────────────────────────────────────────────────────────────┘
-
-Processing Logic (/api/save):
-1. Canonicalize URL (canonicalize function)
+Process (/api/save):
+1. Canonicalise URL (canonicalize function)
    • lower-case scheme+host, drop trailing "/"
    • strip tracking params: utm_*, gclid, fbclid, yclid, mc_*, irclickid,
      spm, gbraid, wbraid, vero_*, ref, ref_*
@@ -143,18 +72,18 @@ Processing Logic (/api/save):
    GET Units?filterByFormula={Link}="canonical_url"
    if exists AND !forceUpdate → return 200 {duplicate:true,existingId,existingData:{title,tags}}
    if exists AND forceUpdate → update record, return 200 {duplicate:true,existingId}
-3. Detect content type (detectContentType function)
+3. Detect content type (detectContentType function) - OPTIONAL
    hostname-based: twitter.com/x.com → "Twitter thread"
                    reddit.com → "Reddit thread"
                    youtube.com/vimeo.com/twitch.tv/tiktok.com → "Video"
                    default → "Article"
 4. If unique (create function)
-   POST Units {Name, Link, Tags, Status:"To do", Type:detected_type}
+   POST Units {Name, Link, Tags, Status?:"To do", Type?:detected_type}
    return 201 {duplicate:false,id}
 Errors → 4xx/5xx {error,details}
 
 ──────────────────────────────────
-3. Browser Extension  (MV3)
+3. Browser Extension (MV3)
 ──────────────────────────────────
 Tech Stack: React + TypeScript + Vite
 
@@ -170,27 +99,29 @@ manifest.json (auto-generated by Vite plugin):
 }
 
 popup.tsx (React component):
- Title  <textarea value={title} onChange={handleTitleChange} rows={2}>
- URL    <textarea value={url} onChange={handleUrlChange} rows={2}>
- Tags   <input value={tags} onChange={handleTagsChange} (with typeahead)>
-        [Save/Update Button] [🗑️ Delete Button] (no toast messages)
+ Title  <textarea value={title} onChange={handleTitleChange} onKeyDown={handleTitleKeyDown} rows={2}>
+ URL    <textarea value={url} onChange={handleUrlChange} onKeyDown={handleUrlKeyDown} rows={2}>
+ Tags   <input value={tags} onChange={handleTagsChange} onKeyDown={handleKeyDown} (with typeahead)>
+                         [Save/Update Button] (no toast messages)
+                         [Delete Button] (trash icon)
 
-Behavior:
+Behaviour:
 • On mount (useEffect)
     – chrome.tabs.query → fill title + url from active tab
     – fetch("/api/tags") → populate availableTags for suggestions
     – performSave(url, title, []) → auto-save immediately
 • On input change → checkForChanges() → set hasUnsavedChanges flag
+• Keyboard shortcuts:
+    – Enter on Title/URL/Tags → trigger save (if hasUnsavedChanges && savedRecordId)
+    – Shift+Enter → new line (for textareas)
+    – Arrow keys in Tags → navigate suggestions
+    – Enter with suggestion → accept suggestion
+    – Escape → close suggestions
 • Button states (ONLY feedback mechanism):
     – isLoading: "Saving..." (gray, disabled)
     – !hasUnsavedChanges && savedRecordId: "Saved" (green, disabled)
-    – hasUnsavedChanges: "Update Changes" (orange, enabled)
+    – hasUnsavedChanges: "Update" (blue, enabled)
     – default: "Save to Airtable" (blue, enabled)
-• Delete button (🗑️):
-    – Only visible when savedRecordId exists
-    – Shows confirmation dialog before deletion
-    – Red background, 36x44px, trash emoji
-    – Disabled during isDeleting or isLoading states
 • performSave()
     POST /api/save
     duplicate with existingData → populate form fields with current values
@@ -200,7 +131,7 @@ Behavior:
 • Form population: When duplicate found, auto-fill title + tags from Airtable
 • Tag suggestions: typeahead filtering from availableTags, comma-separated
 • Update workflow: forceUpdate=true when hasUnsavedChanges && savedRecordId
-• Delete workflow: calls DELETE /api/delete, resets form state on success
+• Delete button: visible when savedRecordId exists, immediate action (no confirmation dialog)
 
 Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
 
@@ -209,99 +140,49 @@ Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
 ──────────────────────────────────
 • Standard build process: `npm run build` creates production-ready extension
 • Manual testing: Load extension from `extension/dist/` in Chrome developer mode
+• Testing: `npm test` runs Vitest unit tests
 
 ──────────────────────────────────
 5. Repo / File Layout  
 ──────────────────────────────────
 /api                     ← Vercel Serverless Functions
-  save.ts                ← Main save endpoint with deduplication
-  delete.ts              ← Delete endpoint for removing records
+  save.ts                ← Main save endpoint with deduplication (Status/Type optional)
   tags.ts                ← Dynamic tag suggestions endpoint  
+  delete.ts              ← Delete record endpoint
   src/
-    airtable.ts          ← Airtable API helpers (findByUrl, create, update, deleteRecord, detectContentType)
+    airtable.ts          ← Airtable API helpers (findByUrl, create, detectContentType, getAllRecords, update, deleteRecord)
     canonical.ts         ← URL canonicalization utilities
 
 /extension               ← Chrome Extension (MV3)
-  popup.tsx              ← React popup with auto-save and delete functionality
+  popup.tsx              ← React popup with auto-save and Enter key support
   popup.html             ← Extension popup entry point
   background.ts          ← Service worker
   manifest.json          ← Extension manifest
-  vite.config.ts         ← Build configuration with manifest copy plugin
+  vite.config.ts         ← Build configuration with manifest plugin
   utils/api.ts           ← API client utilities (getTags, postSave, deleteEntry)
 
 /backend                 ← Legacy backend (tests only)
   src/                   ← Shared utilities
   tests/
-    canonical.test.ts    ← 11 URL canonicalization test cases
+    canonical.test.ts    ← 8 URL test cases
     save.test.ts         ← API endpoint tests with mocking
 
 /root
   spec.txt               ← This specification
   README.md              ← User documentation
-  iOS-Integration.md     ← iOS Shortcuts integration guide
   vercel.json            ← Vercel deployment config
   .github/workflows/ci.yml ← CI/CD pipeline
+  iOS-Integration.md     ← iOS Shortcut integration guide
 
 ──────────────────────────────────
 6. Testing & CI/CD
 ──────────────────────────────────
-Test Framework: Vitest with Edge Runtime environment
+Test Framework: Vitest with Node environment
 Coverage:
-
-Canonical URL Tests (11 test cases):
-1. Normalize scheme and host to lowercase
-   Input: "HTTPS://EXAMPLE.COM/Path"
-   Expected: "https://example.com/Path"
-
-2. Remove trailing slash from path
-   Input: "https://example.com/path/"
-   Expected: "https://example.com/path"
-
-3. Keep root path slash
-   Input: "https://example.com/"
-   Expected: "https://example.com/"
-
-4. Remove UTM parameters
-   Input: "https://example.com?utm_source=google&utm_medium=cpc&utm_campaign=test"
-   Expected: "https://example.com/"
-
-5. Remove click tracking parameters
-   Input: "https://example.com?gclid=123&fbclid=456&yclid=789"
-   Expected: "https://example.com/"
-
-6. Remove MailChimp and other tracking parameters
-   Input: "https://example.com?mc_cid=test&spm=123&gbraid=abc"
-   Expected: "https://example.com/"
-
-7. Remove Vero and referral parameters
-   Input: "https://example.com?vero_conv=1&ref=twitter&ref_src=social"
-   Expected: "https://example.com/"
-
-8. Preserve non-tracking parameters
-   Input: "https://example.com?page=1&sort=name&utm_source=test"
-   Expected: "https://example.com/?page=1&sort=name"
-
-9. Handle complex URLs with all transformations
-   Input: "HTTPS://EXAMPLE.COM/Path/?utm_source=google&page=1&gclid=123&sort=date&mc_cid=test"
-   Expected: "https://example.com/Path?page=1&sort=date"
-
-10. Remove Twitter/X sharing parameters
-    Input: "https://x.com/karpathy/status/1938626382248149433?s=46"
-    Expected: "https://x.com/karpathy/status/1938626382248149433"
-
-11. Throw error for invalid URLs
-    Input: "not-a-url"
-    Expected: Throws "Invalid URL" error
-
-Save API Tests:
-• OPTIONS request handling with CORS headers
-• Method validation (405 for non-POST)
-• JSON parsing error handling (400 for invalid JSON)
-• Request validation (400 for missing required fields)
-• Successful record creation (201 response)
-• Duplicate detection and handling
-• Service error handling (502 for external API failures)
-• Complete endpoint testing with mocked Airtable responses
+• canonical.test.ts: 11 URL canonicalization scenarios (including YouTube and Twitter)
+• save.test.ts: 7 API endpoint testing scenarios with mocked Airtable (create, duplicate, update)
+• Deduplication tests: URL-based duplicate prevention
+• Type detection tests: Smart content classification
 
 Build Commands:
 • Extension: cd extension && npm run build → extension/dist/
@@ -317,20 +198,20 @@ Deployment:
 ✔ Auto-save on popup open → immediate save with "Saving..." button state
 ✔ Unique URL → button shows "Saved" (green, disabled)
 ✔ Duplicate URL → form populated with existing title/tags, button shows "Saved"
-✔ Edit populated fields → button changes to "Update Changes" (orange)
+✔ Edit populated fields → button changes to "Update" (blue)
 ✔ Click update → saves changes, button returns to "Saved" state
-✔ Type detection → Twitter/Reddit/Video/Article auto-assigned based on hostname
+✔ Enter key on any field → triggers update (if changes exist)
+✔ Shift+Enter → allows multi-line input in textareas
+✔ Type detection → Twitter/Reddit/Video/Article auto-assigned (when supported)
 ✔ Tag suggestions → fetched fresh from Airtable, typeahead filtering
-✔ Network error → button stays in loading state, no toast messages
+✔ Network error → button stays in loading state
 ✔ URL canonicalization → tracking + YouTube + Twitter params removed, normalized
-✔ Status field → "To do" automatically set for new entries
+✔ Status field → "To do" automatically set (when field exists)
 ✔ YouTube deduplication → URLs with playlists/timestamps treated as same video
-✔ Twitter deduplication → URLs with sharing parameters (s=46) treated as same tweet
 ✔ Form population → existing entries auto-fill for easy editing
 ✔ Button-only feedback → no toast messages, all status in button
-✔ Delete functionality → 🗑️ button appears for saved records, confirmation dialog
-✔ Delete success → form state reset, button disappears
-✔ Adaptive popup width → 320px-500px range, content-responsive
+✔ Delete button → visible when saved, immediate action (no confirmation dialog)
+✔ Flexible schema → works with tables that don't have Status/Type fields
 
 ──────────────────────────────────
 8. Current Implementation Notes
@@ -346,8 +227,9 @@ Deployment:
 • No Chakra UI (custom inline styles)
 • Vercel Serverless Functions instead of Edge Runtime
 • URL-based deduplication instead of hash-based
-• Enhanced URL canonicalization (YouTube playlists/timestamps, Twitter sharing params)
+• Enhanced YouTube URL canonicalization (playlists, timestamps)
 • Two-phase save: populate first, update on demand with forceUpdate flag
-• Delete functionality with confirmation dialog and form state reset
-• Adaptive popup dimensions (320-500px width, 300px min-height)
-• Console debug logging for delete operations (temporary for troubleshooting)
+• Delete functionality with immediate action (no confirmation dialog)
+• Enter key shortcuts for quick updates
+• Status/Type fields are optional for compatibility with different table schemas
+• Graceful degradation when Airtable fields don't exist
