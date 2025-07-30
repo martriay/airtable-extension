@@ -138,3 +138,21 @@ export async function create(record: CreateRecord): Promise<AirtableRecord> {
   const data: AirtableRecord = await response.json();
   return data;
 } 
+export async function update(recordId: string, fields: Partial<CreateRecord>): Promise<AirtableRecord> {
+  const body = {
+    fields: fields
+  };
+  
+  const response = await fetch(`${BASE_URL}/${recordId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Airtable API error: ${response.status} ${response.statusText}`);
+  }
+  
+  const data: AirtableRecord = await response.json();
+  return data;
+}

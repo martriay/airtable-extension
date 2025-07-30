@@ -2,39 +2,14 @@
 
 A powerful Chrome extension for instantly saving web pages to Airtable with intelligent categorization, auto-save functionality, and smart duplicate prevention.
 
-## ✨ Features
+## Features
 
-### 🚀 **Auto-Save Experience**
-- **Instant Save**: Automatically saves the current page when extension opens
-- **Smart Change Tracking**: Real-time detection of title, URL, and tag modifications
-- **One-Click Updates**: Only shows update button when changes are detected
-- **Visual Feedback**: Color-coded button states with emoji indicators
-
-### 🧠 **Intelligent Content Detection**
-- **Smart Type Classification**:
-  - 🐦 **Twitter thread** for Twitter/X links
-  - 🔴 **Reddit thread** for Reddit discussions  
-  - 🎥 **Video** for YouTube, Vimeo, Twitch, TikTok
-  - 📄 **Article** for everything else
-- **Auto-Status Setting**: New entries automatically marked as "To do"
-- **URL Canonicalization**: Removes tracking parameters and normalizes URLs
-
-### 🏷️ **Advanced Tag Management**
-- **Dynamic Suggestions**: Tag autocomplete from existing Airtable data
-- **Typeahead Interface**: Smart filtering as you type
-- **Multi-select Support**: Add multiple tags with comma separation
-- **Real-time Sync**: Always up-to-date with your Airtable tags
-
-### 🔄 **Robust Deduplication**
-- **URL-based Prevention**: Prevents duplicate entries by canonical URL
-- **Instant Detection**: Shows existing entries immediately
-- **Update Workflow**: Seamlessly update existing records
-
-### 🎨 **Beautiful Interface**
-- **Responsive Design**: Clean, modern popup interface
-- **Accessible Inputs**: Full-height textareas for long titles/URLs
-- **Status Indicators**: Clear visual feedback for all operations
-- **Development Tools**: Hot-reload dev server for rapid iteration
+- Auto-saves page when extension opens
+- Smart content type detection (Twitter, Reddit, Video, Article)
+- URL-based deduplication prevents duplicates
+- Dynamic tag suggestions from Airtable
+- Real-time change tracking with update button
+- Clean popup interface with visual feedback
 
 ## 📁 Repository Structure
 

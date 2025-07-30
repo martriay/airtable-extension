@@ -1,5 +1,5 @@
 import { canonicalize } from './src/canonical';
-import { findByUrl, create, detectContentType } from './src/airtable';
+import { findByUrl, create, update, detectContentType } from './src/airtable';
 
 interface SaveRequest {
   url: string;
@@ -47,9 +47,18 @@ export default async function handler(req: any, res: any) {
     // Check for existing record with same canonical URL
     const existingRecord = await findByUrl(canonical);
     if (existingRecord) {
+      // Update the existing record with new data
+      const contentType = detectContentType(canonical);
+      const updatedRecord = await update(existingRecord.id, {
+        Name: body.title,
+        Tags: body.tags,
+        Status: 'To do',
+        Type: contentType
+      });
+      
       const response: SaveResponse = {
         duplicate: true,
-        existingId: existingRecord.id
+        existingId: updatedRecord.id
       };
       return res.status(200).json(response);
     }
