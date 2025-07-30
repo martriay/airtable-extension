@@ -194,17 +194,17 @@ function Popup() {
 
   return (
     <div style={{ 
-      width: '340px', 
-      padding: '16px', 
+      width: '400px', 
+      padding: '14px', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       backgroundColor: '#ffffff',
       borderRadius: '8px'
     }}>
       
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '12px' }}>
         <label style={{ 
           display: 'block', 
-          marginBottom: '6px', 
+          marginBottom: '4px', 
           fontSize: '13px', 
           fontWeight: '500',
           color: '#374151'
@@ -230,10 +230,10 @@ function Popup() {
         />
       </div>
 
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '12px' }}>
         <label style={{ 
           display: 'block', 
-          marginBottom: '6px', 
+          marginBottom: '4px', 
           fontSize: '13px', 
           fontWeight: '500',
           color: '#374151'
@@ -260,10 +260,10 @@ function Popup() {
         />
       </div>
 
-      <div style={{ marginBottom: '20px', position: 'relative' }}>
+      <div style={{ marginBottom: '16px', position: 'relative' }}>
         <label style={{ 
           display: 'block', 
-          marginBottom: '6px', 
+          marginBottom: '4px', 
           fontSize: '13px', 
           fontWeight: '500',
           color: '#374151'
