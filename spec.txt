@@ -1,12 +1,14 @@
-APP SPEC — "Save to Airtable"  (Current Implementation)
+APP SPEC — "Save to Airtable"  (Current Implementation v2.0)
 
 ──────────────────────────────────
 0. Goal
 ──────────────────────────────────
-• Chrome browser extension with auto-save functionality.
+• Chrome browser extension with instant auto-save functionality.
 • Capture Title, URL (editable), Tags → write to Airtable Units table.
 • Smart content type detection and URL-based deduplication.
 • Real-time change tracking with conditional updates.
+• Form population from existing entries for easy editing.
+• Button-only feedback system (no toast messages).
 
 ──────────────────────────────────
 1. Airtable Contract
@@ -41,7 +43,9 @@ POST /api/save  body:
   "url":   "<raw url>",
   "title": "<page title>",
   "tags":  ["tag1","tag2"],
-  "source":"Extension"
+  "source":"Extension",
+  "forceUpdate": boolean (optional),
+  "recordId": "recXXXXXX" (optional)
 }
 
 GET /api/tags
@@ -52,13 +56,16 @@ Process (/api/save):
    • lower-case scheme+host, drop trailing "/"
    • strip tracking params: utm_*, gclid, fbclid, yclid, mc_*, irclickid,
      spm, gbraid, wbraid, vero_*, ref, ref_*
+   • YouTube-specific: list, index, t, start, end, feature, app, si, pp,
+     ab_channel, source, kw, gws_rd, ei, ved, usg, sa, rlz, biw, bih
 2. Dedup by URL (findByUrl function)
    GET Units?filterByFormula={Link}="canonical_url"
-   if exists → return 200 {duplicate:true,existingId}
+   if exists AND !forceUpdate → return 200 {duplicate:true,existingId,existingData:{title,tags}}
+   if exists AND forceUpdate → update record, return 200 {duplicate:true,existingId}
 3. Detect content type (detectContentType function)
    hostname-based: twitter.com/x.com → "Twitter thread"
                    reddit.com → "Reddit thread"
-                   youtube.com/vimeo.com/etc → "Video"
+                   youtube.com/vimeo.com/twitch.tv/tiktok.com → "Video"
                    default → "Article"
 4. If unique (create function)
    POST Units {Name, Link, Tags, Status:"To do", Type:detected_type}
@@ -85,7 +92,7 @@ popup.tsx (React component):
  Title  <textarea value={title} onChange={handleTitleChange} rows={2}>
  URL    <textarea value={url} onChange={handleUrlChange} rows={2}>
  Tags   <input value={tags} onChange={handleTagsChange} (with typeahead)>
-                     [Save/Update Button]
+                     [Save/Update Button] (no toast messages)
 
 Behaviour:
 • On mount (useEffect)
@@ -93,19 +100,22 @@ Behaviour:
     – fetch("/api/tags") → populate availableTags for suggestions
     – performSave(url, title, []) → auto-save immediately
 • On input change → checkForChanges() → set hasUnsavedChanges flag
-• Button states:
-    – isLoading: "Saving..." (gray)
+• Button states (ONLY feedback mechanism):
+    – isLoading: "Saving..." (gray, disabled)
     – !hasUnsavedChanges && savedRecordId: "✅ Saved" (green, disabled)
-    – hasUnsavedChanges: "📝 Update Changes" (orange)
-    – default: "Save to Airtable" (blue)
+    – hasUnsavedChanges: "📝 Update Changes" (orange, enabled)
+    – default: "Save to Airtable" (blue, enabled)
 • performSave()
     POST /api/save
-    duplicate → "✅ Found existing entry - ready for updates"
-    created   → "✅ Successfully saved to Airtable!"
-    error     → "❌ Error saving to Airtable. Please try again."
+    duplicate with existingData → populate form fields with current values
+    duplicate with forceUpdate → update existing record
+    created → set savedRecordId, mark as saved
+    error → keep in error state (no toast)
+• Form population: When duplicate found, auto-fill title + tags from Airtable
 • Tag suggestions: typeahead filtering from availableTags, comma-separated
+• Update workflow: forceUpdate=true when hasUnsavedChanges && savedRecordId
 
-Dependencies: react, react-dom (no Chakra UI, no axios)
+Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
 
 ──────────────────────────────────
 4. Development Tools
@@ -169,27 +179,34 @@ Deployment:
 ──────────────────────────────────
 7. Current Behavior & Acceptance Tests
 ──────────────────────────────────
-✔ Auto-save on popup open → immediate save with loading state
-✔ Unique URL → "✅ Successfully saved to Airtable!", green "✅ Saved" button
-✔ Duplicate URL → "✅ Found existing entry - ready for updates"
-✔ Edit fields → orange "📝 Update Changes" button appears
-✔ Update changes → saves successfully, returns to "✅ Saved" state
-✔ Type detection → Twitter/Reddit/Video/Article auto-assigned
-✔ Tag suggestions → fetched from Airtable, typeahead filtering
-✔ Network error → "❌ Error saving..." message, retry on next action
-✔ URL canonicalization → tracking params removed, normalized
+✔ Auto-save on popup open → immediate save with "Saving..." button state
+✔ Unique URL → button shows "✅ Saved" (green, disabled)
+✔ Duplicate URL → form populated with existing title/tags, button shows "✅ Saved"
+✔ Edit populated fields → button changes to "📝 Update Changes" (orange)
+✔ Click update → saves changes, button returns to "✅ Saved" state
+✔ Type detection → Twitter/Reddit/Video/Article auto-assigned based on hostname
+✔ Tag suggestions → fetched fresh from Airtable, typeahead filtering
+✔ Network error → button stays in loading state, no toast messages
+✔ URL canonicalization → tracking + YouTube params removed, normalized
 ✔ Status field → "To do" automatically set for new entries
+✔ YouTube deduplication → URLs with playlists/timestamps treated as same video
+✔ Form population → existing entries auto-fill for easy editing
+✔ Button-only feedback → no toast messages, all status in button
 
 ──────────────────────────────────
 8. Current Implementation Notes
 ──────────────────────────────────
 • Auto-save happens immediately on popup open (no debouncing)
+• Form population from existing entries for easy editing
+• No toast messages - all feedback through button states only
 • No undo functionality (removed from original spec)
 • No caching in chrome.storage (tags fetched fresh each time)
 • Change tracking compares against original saved data
-• Button disabled when no changes detected
+• Button disabled when no changes detected or when loading
 • Uses native fetch API instead of axios
 • No Chakra UI (custom inline styles)
 • Development preview via dev.html with mocked Chrome APIs
 • Vercel Serverless Functions instead of Edge Runtime
 • URL-based deduplication instead of hash-based
+• Enhanced YouTube URL canonicalization (playlists, timestamps)
+• Two-phase save: populate first, update on demand with forceUpdate flag
