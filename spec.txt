@@ -1,0 +1,175 @@
+APP SPEC — "Save to Airtable"  (Updated Implementation)
+
+──────────────────────────────────
+0. Goal
+──────────────────────────────────
+• Desktop browser extension + iOS Shortcut.
+• Capture Title, URL (editable), Tags → write to Airtable Units table.
+• Nothing else (no screenshots, selections, notes, extraction).
+
+──────────────────────────────────
+1. Airtable Contract
+──────────────────────────────────
+BASE: env AIRTABLE_BASE_ID
+TABLE: Units
+
+Field         Type            Filled by app   Value
+------------  --------------  -------------   -------------------------
+Name          Single-line     yes             page title
+Link          URL             yes             canonical URL
+Tags          Multiple-select yes             array of tag strings
+hash          Single-line     yes             SHA256 hash for deduplication
+(all others)  —               no              untouched
+
+──────────────────────────────────
+2. Backend API  (/save)
+──────────────────────────────────
+Platform: Vercel Edge Runtime
+Env:
+  AIRTABLE_PAT
+  AIRTABLE_BASE_ID
+  AIRTABLE_TABLE=Units
+
+POST /save  body:
+{
+  "url":   "<raw url>",
+  "title": "<page title>",
+  "tags":  ["tag1","tag2"],
+  "source":"Extension" | "iOS Shortcut"
+}
+
+Process:
+1. Canonicalise URL (canonicalize function)
+   • lower-case scheme+host, drop trailing "/"
+   • strip tracking params: utm_*, gclid, fbclid, yclid, mc_*, irclickid,
+     spm, gbraid, wbraid, vero_*, ref, ref_*
+2. Dedup strict (findByHash function)
+   hash = sha256(canonical_url)
+   GET Units?filterByFormula={hash}="…"
+   if exists → return 200 {duplicate:true,existingId}
+3. If unique (create function)
+   POST Units {Name, Link, Tags}
+   return 201 {duplicate:false,id}
+Errors → 4xx/5xx {error,details}
+
+──────────────────────────────────
+3. Browser Extension  (MV3)
+──────────────────────────────────
+Tech Stack: React + TypeScript + Chakra UI
+
+manifest.json:
+{
+  "manifest_version": 3,
+  "name": "Save to Airtable",
+  "version": "1.0.0",
+  "permissions": ["storage","activeTab"],
+  "host_permissions": ["https://YOUR_BACKEND_DOMAIN/*"],
+  "action": { "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js" }
+}
+
+popup.tsx (React component):
+ Title  <Input value={title} onChange={setTitle}>
+ URL    <Input value={url} onChange={setUrl}>      (editable)
+ Tags   <Select multiple value={selectedTags} onChange={handleTagChange}>
+                     [Undo Button]
+
+Behaviour:
+• On mount
+    – chrome.tabs.query → fill title + url from active tab
+    – fetch("/tags") via backend & cache in chrome.storage.local ≤24h
+    – autosave() immediately
+• On any input change → debounce 300 ms → autosave()
+• autosave()
+    if !recordId
+        POST /save
+        duplicate → toast "Already saved", close popup after 1s
+        created   → save recordId, show Undo button
+    else
+        PATCH /Units/recordId with updated fields (direct Airtable API)
+• Undo
+    if recordId → DELETE /Units/recordId ; close popup
+    else         → close popup
+• Errors show red toast; next edit retries.
+
+Dependencies: axios, lodash.debounce, @chakra-ui/react
+
+──────────────────────────────────
+4. iOS Shortcut  (SaveToAirtable.shortcut)
+──────────────────────────────────
+1. Get URLs from input → first item
+2. Get Details of URLs → Title
+3. POST to https://YOUR_BACKEND_DOMAIN/save with
+   {url,title,tags:[],source:"iOS Shortcut"}
+4. Show Result "Saved!" or "Already saved"
+
+──────────────────────────────────
+5. Repo / File Layout
+──────────────────────────────────
+/backend
+  api/save.ts         ← Vercel Edge API endpoint
+  src/canonical.ts    ← URL canonicalization utilities
+  src/airtable.ts     ← Airtable API helpers (findByHash, create)
+  tests/
+    canonical.test.ts ← 8 URL test cases
+    save.test.ts      ← API endpoint tests with mocking
+
+/extension
+  manifest.json       ← Chrome MV3 manifest
+  background.ts       ← Minimal service worker
+  popup.tsx           ← React popup component
+  utils/api.ts        ← API client utilities
+
+/shortcut
+  SaveToAirtable.shortcut
+
+/root
+  vitest.config.ts    ← Test configuration
+  test-setup.ts       ← Test environment setup
+  vercel.json         ← Vercel deployment config
+  .github/workflows/ci.yml ← CI/CD pipeline
+  README.md           ← Documentation
+  LICENSE             ← MIT License
+
+──────────────────────────────────
+6. Testing & CI/CD
+──────────────────────────────────
+Test Framework: Vitest with Edge Runtime environment
+Coverage:
+• canonical.test.ts: 8 URL canonicalization scenarios
+• save.test.ts: Complete API endpoint testing with mocked Airtable
+
+CI/CD Pipeline (GitHub Actions):
+1. Install dependencies (pnpm)
+2. Run linting
+3. Execute test suite
+4. Build extension
+5. Deploy to Vercel production
+
+Required GitHub Secrets:
+- VERCEL_ORG_ID
+- VERCEL_PROJECT_ID  
+- VERCEL_TOKEN
+
+──────────────────────────────────
+7. Acceptance Tests
+──────────────────────────────────
+✔ Unique URL → record created, green toast, Undo visible
+✔ Undo → record deleted, popup closes
+✔ Duplicate URL → "Already saved" toast, popup closes
+✔ Edit fields → PATCH succeeds, toast updates
+✔ iOS Share → record saved with title, empty tags
+✔ Network error → red toast, retry on next edit
+✔ Tag caching → 24h cache in chrome.storage.local
+✔ URL canonicalization → tracking params removed, normalized
+
+──────────────────────────────────
+8. Non-Functional
+──────────────────────────────────
+• Popup → first save < 500 ms on 100 ms RTT
+• Tag cache refresh once/day < 400 ms
+• Airtable PAT only on backend; no API key auth implemented
+• Minimal logs (no full URLs/titles)
+• Extension storage footprint < 200 KB
+• Edge runtime deployment for global performance
+• TypeScript throughout for type safety

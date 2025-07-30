@@ -1,0 +1,24 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc && wrangler publish --dry-run",
+    "deploy": "wrangler publish",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@vercel/edge": "^1.1.1",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20230518.0",
+    "@types/node": "^20.4.5",
+    "typescript": "^5.1.6",
+    "vitest": "^0.34.1",
+    "wrangler": "^3.5.1"
+  }
+} 
