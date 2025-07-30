@@ -57,6 +57,7 @@ export default async function handler(req: any, res: any) {
     // Detect content type and set status
     const contentType = detectContentType(canonical);
     
+    // Create record with Status and Type fields
     const newRecord = await create({
       Name: body.title,
       Link: canonical,
