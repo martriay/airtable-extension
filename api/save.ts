@@ -6,12 +6,18 @@ interface SaveRequest {
   title: string;
   tags: string[];
   source: 'Extension' | 'iOS Shortcut';
+  forceUpdate?: boolean;
+  recordId?: string;
 }
 
 interface SaveResponse {
   duplicate: boolean;
   id?: string;
   existingId?: string;
+  existingData?: {
+    title: string;
+    tags: string[];
+  };
   error?: string;
   details?: string;
 }
@@ -47,18 +53,31 @@ export default async function handler(req: any, res: any) {
     // Check for existing record with same canonical URL
     const existingRecord = await findByUrl(canonical);
     if (existingRecord) {
-      // Update the existing record with new data
-      const contentType = detectContentType(canonical);
-      const updatedRecord = await update(existingRecord.id, {
-        Name: body.title,
-        Tags: body.tags,
-        Status: 'To do',
-        Type: contentType
-      });
+      // If forceUpdate is true, update the existing record
+      if (body.forceUpdate && body.recordId === existingRecord.id) {
+        const contentType = detectContentType(canonical);
+        const updatedRecord = await update(existingRecord.id, {
+          Name: body.title,
+          Tags: body.tags,
+          Status: 'To do',
+          Type: contentType
+        });
+        
+        const response: SaveResponse = {
+          duplicate: true,
+          existingId: updatedRecord.id
+        };
+        return res.status(200).json(response);
+      }
       
+      // Return existing data without updating yet
       const response: SaveResponse = {
         duplicate: true,
-        existingId: updatedRecord.id
+        existingId: existingRecord.id,
+        existingData: {
+          title: existingRecord.fields.Name,
+          tags: existingRecord.fields.Tags || []
+        }
       };
       return res.status(200).json(response);
     }
