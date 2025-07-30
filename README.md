@@ -23,11 +23,9 @@ A powerful Chrome extension for instantly saving web pages to Airtable with inte
 ├── extension/                   # Chrome Extension (MV3)
 │   ├── popup.tsx                # React popup with auto-save
 │   ├── popup.html               # Extension popup entry point
-│   ├── dev.html                 # Development preview page
 │   ├── background.ts            # Service worker
 │   ├── manifest.json            # Extension manifest
 │   ├── vite.config.ts           # Build configuration
-│   ├── vite.dev.config.ts       # Development server config
 │   └── utils/
 │       └── api.ts               # API client utilities
 ├── backend/                     # Legacy backend (tests only)
@@ -67,9 +65,6 @@ AIRTABLE_TABLE=Units                       # Table name (default: Units)
 # Install dependencies
 pnpm install
 
-# Start extension development server
-cd extension && npm run dev
-
 # Build extension for production
 cd extension && npm run build
 
@@ -80,11 +75,7 @@ vercel --prod
 ### 🔄 Development Workflow
 
 ```bash
-# Extension development with hot reload
-cd extension && npm run dev
-# → Opens http://localhost:5173/dev.html
-
-# Extension build for Chrome
+# Build extension for Chrome
 cd extension && npm run build
 # → Outputs to extension/dist/
 
@@ -170,12 +161,16 @@ cd extension && npm run build
 # 4. Select extension/dist/ folder
 ```
 
-### 🌐 Live Demo
+### 🌐 Testing
 
-You can test the extension development interface at:
+Test the extension by loading it in Chrome:
 ```bash
-cd extension && npm run dev
-# Opens http://localhost:5173/dev.html
+# 1. Build the extension
+cd extension && npm run build
+
+# 2. Load in Chrome at chrome://extensions/
+# 3. Enable "Developer mode" and click "Load unpacked"
+# 4. Select the extension/dist/ folder
 ```
 
 ## 📡 API Endpoints
