@@ -194,7 +194,7 @@ function Popup() {
 
   return (
     <div style={{ 
-      width: '420px', 
+      width: '340px', 
       padding: '16px', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       backgroundColor: '#ffffff',
@@ -214,7 +214,7 @@ function Popup() {
         <textarea
           value={title}
           onChange={handleTitleChange}
-          rows={2}
+          rows={1}
           style={{
             width: '100%',
             padding: '10px 12px',
@@ -223,7 +223,7 @@ function Popup() {
             fontSize: '14px',
             fontFamily: 'inherit',
             resize: 'vertical',
-            minHeight: '44px',
+            minHeight: '36px',
             lineHeight: '1.4',
             boxSizing: 'border-box'
           }}
