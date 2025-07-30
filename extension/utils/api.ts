@@ -1,4 +1,4 @@
-const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
+const BACKEND_URL = 'https://airtable-extension-a49rj1ty2-martriays-projects.vercel.app';
 
 export interface SaveRequest {
   url: string;

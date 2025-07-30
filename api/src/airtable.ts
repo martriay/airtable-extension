@@ -34,8 +34,8 @@ interface AirtableResponse {
 
 interface CreateRecord {
   Name: string;
-  Link: string;
-  Tags: string[];
+  Link?: string;
+  Tags?: string[];
   Status?: string;
   Type?: string;
 }
@@ -124,6 +124,8 @@ export async function create(record: CreateRecord): Promise<AirtableRecord> {
     fields: record
   };
   
+  console.log('Creating record with fields:', JSON.stringify(record, null, 2));
+  
   const response = await fetch(BASE_URL, {
     method: 'POST',
     headers,
@@ -131,7 +133,9 @@ export async function create(record: CreateRecord): Promise<AirtableRecord> {
   });
   
   if (!response.ok) {
-    throw new Error(`Airtable API error: ${response.status} ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('Airtable API error response:', errorText);
+    throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorText}`);
   }
   
   const data: AirtableRecord = await response.json();

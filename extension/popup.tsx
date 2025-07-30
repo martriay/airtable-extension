@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { getTags, deleteEntry } from './utils/api';
 
-const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
+const BACKEND_URL = 'https://airtable-extension-a49rj1ty2-martriays-projects.vercel.app';
 
 function Popup() {
   const [url, setUrl] = useState('');
