@@ -9,7 +9,6 @@ function Popup() {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
   const [isLoading, setIsLoading] = useState(true); // Start with loading true for auto-save
-  const [message, setMessage] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
@@ -115,7 +114,6 @@ function Popup() {
   // Core save function that can be used for both auto-save and manual updates
   const performSave = async (saveUrl: string, saveTitle: string, saveTags: string[], forceUpdate = false) => {
     if (!saveUrl || !saveTitle) {
-      setMessage('Missing URL or title');
       setIsLoading(false);
       return;
     }
@@ -154,22 +152,19 @@ function Popup() {
             title: result.existingData.title, 
             tags: result.existingData.tags.join(', ') 
           });
-          setMessage('✅ Found existing entry - populated with current data');
           setHasUnsavedChanges(false);
         } else {
-          setMessage('✅ Successfully updated existing entry!');
           setHasUnsavedChanges(false);
           setOriginalData({ url: saveUrl, title: saveTitle, tags: saveTags.join(', ') });
         }
       } else {
         setSavedRecordId(result.id);
-        setMessage('✅ Successfully saved to Airtable!');
         setHasUnsavedChanges(false);
         setOriginalData({ url: saveUrl, title: saveTitle, tags: saveTags.join(', ') });
       }
     } catch (error) {
       console.error('Save error:', error);
-      setMessage('❌ Error saving to Airtable. Please try again.');
+      // Keep error state in isLoading to show error in button
     } finally {
       setIsLoading(false);
     }
@@ -178,12 +173,10 @@ function Popup() {
   // Handle manual save/update
   const handleSave = async () => {
     if (!url || !title) {
-      setMessage('Please fill in both URL and title');
       return;
     }
 
     setIsLoading(true);
-    setMessage('Updating...');
 
     const tagArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
     // Use forceUpdate if we have unsaved changes and an existing record
@@ -359,21 +352,6 @@ function Popup() {
          (!hasUnsavedChanges && savedRecordId) ? '✅ Saved' :
          hasUnsavedChanges ? '📝 Update Changes' : 'Save to Airtable'}
       </button>
-
-      {message && (
-        <div style={{
-          marginTop: '12px',
-          padding: '10px 12px',
-          backgroundColor: message.includes('❌') ? '#fef2f2' : '#f0fdf4',
-          color: message.includes('❌') ? '#dc2626' : '#16a34a',
-          border: `1px solid ${message.includes('❌') ? '#fecaca' : '#bbf7d0'}`,
-          borderRadius: '6px',
-          fontSize: '13px',
-          lineHeight: '1.4'
-        }}>
-          {message}
-        </div>
-      )}
     </div>
   );
 }
