@@ -4,8 +4,6 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "vite dev.html",
-    "dev:extension": "vite --config vite.dev.config.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",

@@ -56,7 +56,10 @@ export async function canonicalize(raw: string): Promise<{ canonical: string; ha
       'sa',             // Google search parameter
       'rlz',            // Client ID
       'biw',            // Browser width
-      'bih'             // Browser height
+      'bih',            // Browser height
+      
+      // Twitter/X-specific parameters
+      's',              // Twitter sharing parameter (e.g., s=46)
     ];
     
     // Remove matching parameters (including wildcard patterns)

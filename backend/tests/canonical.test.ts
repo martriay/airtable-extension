@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalize } from '../src/canonical';
+import { canonicalize } from '../../api/src/canonical';
 
 describe('canonicalize', () => {
   it('should normalize scheme and host to lowercase', async () => {
@@ -48,6 +48,11 @@ describe('canonicalize', () => {
     const result = await canonicalize(input);
     expect(result.canonical).toBe('https://example.com/Path?page=1&sort=date');
     expect(result.hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('should remove Twitter/X sharing parameters', async () => {
+    const result = await canonicalize('https://x.com/karpathy/status/1938626382248149433?s=46');
+    expect(result.canonical).toBe('https://x.com/karpathy/status/1938626382248149433');
   });
 
   it('should throw error for invalid URLs', async () => {

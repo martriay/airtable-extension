@@ -25,7 +25,6 @@ interface AirtableRecord {
     Tags: string[];
     Status?: string;
     Type?: string;
-    hash?: string;
   };
 }
 
@@ -155,4 +154,17 @@ export async function update(recordId: string, fields: Partial<CreateRecord>): P
   
   const data: AirtableRecord = await response.json();
   return data;
+}
+
+export async function deleteRecord(recordId: string): Promise<void> {
+  const response = await fetch(`${BASE_URL}/${recordId}`, {
+    method: "DELETE",
+    headers
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Airtable delete error: ${response.status} ${response.statusText}`, errorText);
+    throw new Error(`Airtable API error: ${response.status} ${response.statusText}`);
+  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { getTags } from './utils/api';
+import { getTags, deleteEntry } from './utils/api';
 
 const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
 
@@ -16,6 +16,7 @@ function Popup() {
   const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalData, setOriginalData] = useState({ url: '', title: '', tags: '' });
+  const [isDeleting, setIsDeleting] = useState(false);
   const tagsInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -184,6 +185,41 @@ function Popup() {
     await performSave(url, title, tagArray, shouldUpdate);
   };
 
+  // Handle delete
+  const handleDelete = async () => {
+    console.log('Delete button clicked, savedRecordId:', savedRecordId);
+    
+    if (!savedRecordId) {
+      console.log('No savedRecordId, returning early');
+      return;
+    }
+
+    const confirmed = confirm('Are you sure you want to delete this entry from Airtable?');
+    console.log('User confirmed deletion:', confirmed);
+    
+    if (!confirmed) {
+      return;
+    }
+
+    console.log('Starting delete process...');
+    setIsDeleting(true);
+
+    try {
+      console.log('Calling deleteEntry with recordId:', savedRecordId);
+      await deleteEntry(savedRecordId);
+      console.log('Delete successful, resetting form state');
+      // Reset the form state after successful deletion
+      setSavedRecordId(null);
+      setHasUnsavedChanges(false);
+      setOriginalData({ url: '', title: '', tags: '' });
+    } catch (error) {
+      console.error('Delete failed:', error);
+      // Keep the current state if delete fails
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Track changes to enable/disable update button
   const checkForChanges = (newUrl: string, newTitle: string, newTags: string) => {
     const hasChanges = newUrl !== originalData.url || 
@@ -194,7 +230,10 @@ function Popup() {
 
   return (
     <div style={{ 
-      width: '400px', 
+      minWidth: '320px',
+      maxWidth: '500px',
+      width: 'max-content',
+      minHeight: '300px', 
       padding: '14px', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       backgroundColor: '#ffffff',
@@ -214,7 +253,7 @@ function Popup() {
         <textarea
           value={title}
           onChange={handleTitleChange}
-          rows={1}
+          rows={2}
           style={{
             width: '100%',
             padding: '10px 12px',
@@ -223,9 +262,11 @@ function Popup() {
             fontSize: '14px',
             fontFamily: 'inherit',
             resize: 'vertical',
-            minHeight: '36px',
+            minHeight: '52px',
             lineHeight: '1.4',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
           }}
         />
       </div>
@@ -329,29 +370,56 @@ function Popup() {
         )}
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={isLoading || (!hasUnsavedChanges && !!savedRecordId)}
-        style={{
-          width: '100%',
-          padding: '12px 16px',
-          backgroundColor: isLoading ? '#9ca3af' : 
-                          (!hasUnsavedChanges && savedRecordId) ? '#10b981' : 
-                          hasUnsavedChanges ? '#f59e0b' : '#2563eb',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: '14px',
-          fontWeight: '500',
-          cursor: (isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
-          transition: 'background-color 0.2s',
-          opacity: (!hasUnsavedChanges && savedRecordId) ? 0.7 : 1
-        }}
-      >
-        {isLoading ? 'Saving...' : 
-         (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
-         hasUnsavedChanges ? 'Update Changes' : 'Save to Airtable'}
-      </button>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button
+          onClick={handleSave}
+          disabled={isLoading || (!hasUnsavedChanges && !!savedRecordId)}
+          style={{
+            flex: '1',
+            padding: '12px 16px',
+            backgroundColor: isLoading ? '#9ca3af' : 
+                            (!hasUnsavedChanges && savedRecordId) ? '#10b981' : 
+                            hasUnsavedChanges ? '#f59e0b' : '#2563eb',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: (isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
+            transition: 'background-color 0.2s',
+            opacity: (!hasUnsavedChanges && savedRecordId) ? 0.7 : 1
+          }}
+        >
+          {isLoading ? 'Saving...' : 
+           (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
+           hasUnsavedChanges ? 'Update Changes' : 'Save to Airtable'}
+        </button>
+        
+        {savedRecordId && (
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting || isLoading}
+            title="Delete entry from Airtable"
+            style={{
+              width: '36px',
+              height: '44px',
+              padding: '0',
+              backgroundColor: isDeleting ? '#9ca3af' : '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              cursor: (isDeleting || isLoading) ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {isDeleting ? '...' : '🗑️'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

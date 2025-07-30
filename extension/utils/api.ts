@@ -85,4 +85,27 @@ export const getTags = async (): Promise<string[]> => {
   
   const data: TagsResponse = await response.json();
   return data.tags || [];
+};
+
+export interface DeleteResponse {
+  success: boolean;
+  error?: string;
+  details?: string;
+}
+
+export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => {
+  const response = await fetch(`${BACKEND_URL}/api/delete`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ recordId }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  const data: DeleteResponse = await response.json();
+  return data;
 }; 
