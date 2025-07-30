@@ -1,5 +1,5 @@
 import { canonicalize } from './src/canonical';
-import { findByHash, create } from './src/airtable';
+import { findByUrl, create, detectContentType } from './src/airtable';
 
 interface SaveRequest {
   url: string;
@@ -44,20 +44,25 @@ export default async function handler(req: any, res: any) {
 
     const { canonical, hash } = await canonicalize(body.url);
 
-    // Temporarily skip deduplication check until hash field is added to Airtable
-    // const existingRecord = await findByHash(hash);
-    // if (existingRecord) {
-    //   const response: SaveResponse = {
-    //     duplicate: true,
-    //     existingId: existingRecord.id
-    //   };
-    //   return res.status(200).json(response);
-    // }
+    // Check for existing record with same canonical URL
+    const existingRecord = await findByUrl(canonical);
+    if (existingRecord) {
+      const response: SaveResponse = {
+        duplicate: true,
+        existingId: existingRecord.id
+      };
+      return res.status(200).json(response);
+    }
 
+    // Detect content type and set status
+    const contentType = detectContentType(canonical);
+    
     const newRecord = await create({
       Name: body.title,
       Link: canonical,
-      Tags: body.tags
+      Tags: body.tags,
+      Status: 'To do',
+      Type: contentType
     });
 
     const response: SaveResponse = {

@@ -1,3 +1,11 @@
+declare const process: {
+  env: {
+    AIRTABLE_PAT: string;
+    AIRTABLE_BASE_ID: string;
+    AIRTABLE_TABLE?: string;
+  };
+};
+
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT as string;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID as string;
 const AIRTABLE_TABLE = process.env.AIRTABLE_TABLE || 'Units';
@@ -15,6 +23,8 @@ interface AirtableRecord {
     Name: string;
     Link: string;
     Tags: string[];
+    Status?: string;
+    Type?: string;
     hash?: string;
   };
 }
@@ -27,19 +37,47 @@ interface CreateRecord {
   Name: string;
   Link: string;
   Tags: string[];
+  Status: string;
+  Type: string;
 }
 
-export async function findByHash(hash: string): Promise<AirtableRecord | null> {
+// Function to detect content type based on URL
+export function detectContentType(url: string): string {
+  const hostname = new URL(url).hostname.toLowerCase();
+  
+  // Twitter/X links
+  if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+    return 'Twitter thread';
+  }
+  
+  // Reddit links
+  if (hostname.includes('reddit.com')) {
+    return 'Reddit thread';
+  }
+  
+  // Video platforms
+  if (hostname.includes('youtube.com') || 
+      hostname.includes('youtu.be') || 
+      hostname.includes('vimeo.com') || 
+      hostname.includes('twitch.tv') || 
+      hostname.includes('tiktok.com')) {
+    return 'Video';
+  }
+  
+  // Default to article
+  return 'Article';
+}
+
+export async function findByUrl(canonicalUrl: string): Promise<AirtableRecord | null> {
   // Check if environment variables are set
   if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
     throw new Error('Missing Airtable environment variables: AIRTABLE_PAT or AIRTABLE_BASE_ID');
   }
   
-  const filterFormula = `{hash}="${hash}"`;
+  const filterFormula = `{Link}="${canonicalUrl}"`;
   const url = `${BASE_URL}?filterByFormula=${encodeURIComponent(filterFormula)}`;
   
-  console.log('Making Airtable request to:', url);
-  console.log('Headers:', { ...headers, 'Authorization': 'Bearer [REDACTED]' });
+  console.log('Checking for duplicate URL:', canonicalUrl);
   
   const response = await fetch(url, { headers });
   
