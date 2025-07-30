@@ -349,8 +349,8 @@ function Popup() {
         }}
       >
         {isLoading ? 'Saving...' : 
-         (!hasUnsavedChanges && savedRecordId) ? '✅ Saved' :
-         hasUnsavedChanges ? '📝 Update Changes' : 'Save to Airtable'}
+         (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
+         hasUnsavedChanges ? 'Update Changes' : 'Save to Airtable'}
       </button>
     </div>
   );
