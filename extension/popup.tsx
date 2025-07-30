@@ -8,41 +8,63 @@ function Popup() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with loading true for auto-save
   const [message, setMessage] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [originalData, setOriginalData] = useState({ url: '', title: '', tags: '' });
   const tagsInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Get current tab info
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        setUrl(tabs[0].url || '');
-        setTitle(tabs[0].title || '');
-      }
-    });
+    const initializeAndAutoSave = async () => {
+      // Get current tab info
+      chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+        if (tabs[0]) {
+          const currentUrl = tabs[0].url || '';
+          const currentTitle = tabs[0].title || '';
+          
+          setUrl(currentUrl);
+          setTitle(currentTitle);
+          setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
 
-    // Fetch available tags from Airtable
-    const fetchTags = async () => {
-      try {
-        const tags = await getTags();
-        setAvailableTags(tags);
-      } catch (error) {
-        console.error('Failed to fetch tags:', error);
-        // Fallback to some basic tags if API fails
-        setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
-      }
+          // Fetch available tags from Airtable
+          try {
+            const availTags = await getTags();
+            setAvailableTags(availTags);
+          } catch (error) {
+            console.error('Failed to fetch tags:', error);
+            setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
+          }
+
+          // Auto-save immediately
+          await performSave(currentUrl, currentTitle, []);
+        }
+      });
     };
 
-    fetchTags();
+    initializeAndAutoSave();
   }, []);
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setTitle(value);
+    checkForChanges(url, value, tags);
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setUrl(value);
+    checkForChanges(value, title, tags);
+  };
 
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setTags(value);
+    checkForChanges(url, title, value);
     
     // Get the current word being typed
     const words = value.split(',');
@@ -90,14 +112,13 @@ function Popup() {
     tagsInputRef.current?.focus();
   };
 
-  const handleSave = async () => {
-    if (!url || !title) {
-      setMessage('URL and title are required');
+  // Core save function that can be used for both auto-save and manual updates
+  const performSave = async (saveUrl: string, saveTitle: string, saveTags: string[]) => {
+    if (!saveUrl || !saveTitle) {
+      setMessage('Missing URL or title');
+      setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
-    setMessage('');
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/save`, {
@@ -106,9 +127,9 @@ function Popup() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          url,
-          title,
-          tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+          url: saveUrl,
+          title: saveTitle,
+          tags: saveTags,
           source: 'Extension'
         }),
       });
@@ -120,16 +141,43 @@ function Popup() {
       const result = await response.json();
       
       if (result.duplicate) {
-        setMessage('This URL was already saved!');
+        setSavedRecordId(result.existingId);
+        setMessage('✅ Found existing entry - ready for updates');
       } else {
-        setMessage('Successfully saved to Airtable!');
+        setSavedRecordId(result.id);
+        setMessage('✅ Successfully saved to Airtable!');
       }
+      
+      setHasUnsavedChanges(false);
+      setOriginalData({ url: saveUrl, title: saveTitle, tags: saveTags.join(', ') });
     } catch (error) {
       console.error('Save error:', error);
-      setMessage('Error saving to Airtable. Please try again.');
+      setMessage('❌ Error saving to Airtable. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle manual save/update
+  const handleSave = async () => {
+    if (!url || !title) {
+      setMessage('Please fill in both URL and title');
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage('Updating...');
+
+    const tagArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    await performSave(url, title, tagArray);
+  };
+
+  // Track changes to enable/disable update button
+  const checkForChanges = (newUrl: string, newTitle: string, newTags: string) => {
+    const hasChanges = newUrl !== originalData.url || 
+                      newTitle !== originalData.title || 
+                      newTags !== originalData.tags;
+    setHasUnsavedChanges(hasChanges);
   };
 
   return (
@@ -153,7 +201,7 @@ function Popup() {
         </label>
         <textarea
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={handleTitleChange}
           rows={2}
           style={{
             width: '100%',
@@ -182,7 +230,7 @@ function Popup() {
         </label>
         <textarea
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={handleUrlChange}
           rows={2}
           style={{
             width: '100%',
@@ -271,30 +319,35 @@ function Popup() {
 
       <button
         onClick={handleSave}
-        disabled={isLoading}
+        disabled={isLoading || (!hasUnsavedChanges && !!savedRecordId)}
         style={{
           width: '100%',
           padding: '12px 16px',
-          backgroundColor: isLoading ? '#9ca3af' : '#2563eb',
+          backgroundColor: isLoading ? '#9ca3af' : 
+                          (!hasUnsavedChanges && savedRecordId) ? '#10b981' : 
+                          hasUnsavedChanges ? '#f59e0b' : '#2563eb',
           color: 'white',
           border: 'none',
           borderRadius: '6px',
           fontSize: '14px',
           fontWeight: '500',
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-          transition: 'background-color 0.2s'
+          cursor: (isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
+          transition: 'background-color 0.2s',
+          opacity: (!hasUnsavedChanges && savedRecordId) ? 0.7 : 1
         }}
       >
-        {isLoading ? 'Saving...' : 'Save to Airtable'}
+        {isLoading ? 'Saving...' : 
+         (!hasUnsavedChanges && savedRecordId) ? '✅ Saved' :
+         hasUnsavedChanges ? '📝 Update Changes' : 'Save to Airtable'}
       </button>
 
       {message && (
         <div style={{
           marginTop: '12px',
           padding: '10px 12px',
-          backgroundColor: message.includes('Error') ? '#fef2f2' : '#f0fdf4',
-          color: message.includes('Error') ? '#dc2626' : '#16a34a',
-          border: `1px solid ${message.includes('Error') ? '#fecaca' : '#bbf7d0'}`,
+          backgroundColor: message.includes('❌') ? '#fef2f2' : '#f0fdf4',
+          color: message.includes('❌') ? '#dc2626' : '#16a34a',
+          border: `1px solid ${message.includes('❌') ? '#fecaca' : '#bbf7d0'}`,
           borderRadius: '6px',
           fontSize: '13px',
           lineHeight: '1.4'
