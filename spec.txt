@@ -30,7 +30,15 @@ Status: "To do", "In progress", "Done"
 Type: "Twitter thread", "Reddit thread", "Video", "Article"
 
 Note: Status and Type fields are optional to handle tables without these fields.
-Tag Creation: New tag options are automatically created via typecast parameter.
+
+Tag Creation Process:
+• Multiple-select field with dynamic option creation via typecast parameter
+• User enters any tags (existing or new) in extension
+• API cleans tags but does NOT filter out new ones
+• Airtable API call includes typecast:true parameter
+• Airtable automatically creates new multiple-select options for unknown tags
+• Record is saved with all tags (both existing and newly created)
+• New tags immediately become available for future use
 
 ──────────────────────────────────
 2. Backend API
@@ -80,7 +88,7 @@ Process (/api/save):
 4. Process tags (processTagsForCreation function)
    • clean tags: trim whitespace, remove empty strings
    • length limit: max 100 characters per tag
-   • no filtering - all valid tags are preserved
+   • no filtering - all cleaned tags are preserved (existing + new)
 5. Detect content type (detectContentType function) - OPTIONAL
    hostname-based: twitter.com/x.com → "Twitter thread"
                    reddit.com → "Reddit thread"
@@ -88,7 +96,10 @@ Process (/api/save):
                    default → "Article"
 6. If unique (create function)
    POST Units {Name, Link, Tags, Status?:"To do", Type?:detected_type, typecast:true}
-   typecast parameter enables automatic creation of new multiple-select options
+   • typecast:true enables automatic creation of new multiple-select options
+   • existing tags: used as-is from current Airtable field options
+   • new tags: automatically added to Airtable field options + applied to record
+   • result: record saved with all tags (existing + newly created)
    return 201 {duplicate:false,id}
 Errors → 4xx/5xx {error,details}
 
@@ -140,6 +151,13 @@ Behaviour:
     error → keep in error state (no toast)
 • Form population: When duplicate found, auto-fill title + tags from Airtable
 • Tag suggestions: typeahead filtering from availableTags, comma-separated
+• Tag creation workflow:
+    – User types any tag (existing or new) in tags input field
+    – Existing tags show in typeahead suggestions
+    – New tags can be typed freely (no validation/filtering)
+    – On save: all tags (existing + new) sent to API with typecast:true
+    – New tags automatically created in Airtable multiple-select field
+    – Next time extension opens: new tags appear in suggestions
 • Update workflow: forceUpdate=true when hasUnsavedChanges && savedRecordId
 • Delete button: visible when savedRecordId exists, immediate action (no confirmation dialog)
 
