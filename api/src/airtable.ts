@@ -119,12 +119,36 @@ export async function getAllRecords(): Promise<AirtableRecord[]> {
   return allRecords;
 }
 
+async function processTagsForCreation(requestedTags: string[]): Promise<string[]> {
+  // Clean and prepare tags for creation - typecast will handle new option creation
+  try {
+    // Simply clean up the tags (trim whitespace, remove empty strings)
+    const cleanedTags = requestedTags
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+      .filter(tag => tag.length <= 100); // Reasonable length limit
+    
+    console.log('Processing tags for creation:', requestedTags, '-> cleaned:', cleanedTags);
+    
+    return cleanedTags;
+  } catch (error) {
+    console.error('Error processing tags, using original tags:', error);
+    return requestedTags; // Fallback to original tags
+  }
+}
+
 export async function create(record: CreateRecord): Promise<AirtableRecord> {
+  // Process tags for creation (clean but don't filter)
+  if (record.Tags && Array.isArray(record.Tags)) {
+    record.Tags = await processTagsForCreation(record.Tags);
+  }
+  
   const body = {
-    fields: record
+    fields: record,
+    typecast: true  // Enable automatic creation of new multiple-select options
   };
   
-  console.log('Creating record with fields:', JSON.stringify(record, null, 2));
+  console.log('Creating record with typecast enabled:', JSON.stringify(record, null, 2));
   
   const response = await fetch(BASE_URL, {
     method: 'POST',
@@ -135,6 +159,29 @@ export async function create(record: CreateRecord): Promise<AirtableRecord> {
   if (!response.ok) {
     const errorText = await response.text();
     console.error('Airtable API error response:', errorText);
+    
+    // If Status or Type fields cause issues, try without them
+    if (response.status === 422 && (record.Status || record.Type)) {
+      console.log('Retrying without Status/Type fields...');
+      const { Status, Type, ...recordWithoutStatusType } = record;
+      
+      const retryBody = {
+        fields: recordWithoutStatusType
+      };
+      
+      const retryResponse = await fetch(BASE_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(retryBody)
+      });
+      
+      if (retryResponse.ok) {
+        console.log('Successfully created record without Status/Type fields');
+        const retryData: AirtableRecord = await retryResponse.json();
+        return retryData;
+      }
+    }
+    
     throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorText}`);
   }
   
@@ -142,8 +189,14 @@ export async function create(record: CreateRecord): Promise<AirtableRecord> {
   return data;
 } 
 export async function update(recordId: string, fields: Partial<CreateRecord>): Promise<AirtableRecord> {
+  // Process tags for creation (clean but don't filter)
+  if (fields.Tags && Array.isArray(fields.Tags)) {
+    fields.Tags = await processTagsForCreation(fields.Tags);
+  }
+  
   const body = {
-    fields: fields
+    fields: fields,
+    typecast: true  // Enable automatic creation of new multiple-select options
   };
   
   const response = await fetch(`${BASE_URL}/${recordId}`, {
@@ -153,7 +206,32 @@ export async function update(recordId: string, fields: Partial<CreateRecord>): P
   });
   
   if (!response.ok) {
-    throw new Error(`Airtable API error: ${response.status} ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('Airtable API error response:', errorText);
+    
+    // If Status or Type fields cause issues, try without them
+    if (response.status === 422 && (fields.Status || fields.Type)) {
+      console.log('Retrying update without Status/Type fields...');
+      const { Status, Type, ...fieldsWithoutStatusType } = fields;
+      
+      const retryBody = {
+        fields: fieldsWithoutStatusType
+      };
+      
+      const retryResponse = await fetch(`${BASE_URL}/${recordId}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(retryBody)
+      });
+      
+      if (retryResponse.ok) {
+        console.log('Successfully updated record without Status/Type fields');
+        const retryData: AirtableRecord = await retryResponse.json();
+        return retryData;
+      }
+    }
+    
+    throw new Error(`Airtable API error: ${response.status} ${response.statusText} - ${errorText}`);
   }
   
   const data: AirtableRecord = await response.json();
