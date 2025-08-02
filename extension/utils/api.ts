@@ -49,15 +49,15 @@ export const postSave = async (data: SaveRequest): Promise<SaveResponse> => {
   const response = await fetch(`${BACKEND_URL}/api/save`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   return response.json();
 };
 
@@ -66,12 +66,12 @@ export const patchUnit = async (recordId: string, fields: UnitFields): Promise<v
   const response = await fetch(airtableUrl, {
     method: 'PATCH',
     headers: {
-      'Authorization': `Bearer ${process.env.AIRTABLE_PAT}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${process.env.AIRTABLE_PAT}`,
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ fields })
+    body: JSON.stringify({ fields }),
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -82,10 +82,10 @@ export const deleteUnit = async (recordId: string): Promise<void> => {
   const response = await fetch(airtableUrl, {
     method: 'DELETE',
     headers: {
-      'Authorization': `Bearer ${process.env.AIRTABLE_PAT}`
-    }
+      Authorization: `Bearer ${process.env.AIRTABLE_PAT}`,
+    },
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -95,19 +95,19 @@ export const getTags = async (): Promise<string[]> => {
   // Try to get cached tags first
   const cachedTags = localStorage.getItem('airtable-extension-tags');
   const cacheTimestamp = localStorage.getItem('airtable-extension-tags-timestamp');
-  
+
   // Use cache if it's less than 1 hour old
   if (cachedTags && cacheTimestamp) {
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    if (parseInt(cacheTimestamp) > oneHourAgo) {
+    if (parseInt(cacheTimestamp, 10) > oneHourAgo) {
       console.log('🚀 Using cached tags (fast path)');
       return JSON.parse(cachedTags);
     }
   }
-  
+
   console.log('📡 Fetching fresh tags from API (slow path)');
   const response = await fetch(`${BACKEND_URL}/api/tags`);
-  
+
   if (!response.ok) {
     // If API fails, return cached tags if available
     if (cachedTags) {
@@ -116,14 +116,14 @@ export const getTags = async (): Promise<string[]> => {
     }
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   const data: TagsResponse = await response.json();
   const tags = data.tags || [];
-  
+
   // Cache the results
   localStorage.setItem('airtable-extension-tags', JSON.stringify(tags));
   localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
-  
+
   return tags;
 };
 
@@ -135,12 +135,12 @@ export const checkUrl = async (url: string): Promise<CheckResponse> => {
     },
     body: JSON.stringify({ url }),
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
-  return await response.json();
+
+  return response.json();
 };
 
 export interface DeleteResponse {
@@ -157,11 +157,11 @@ export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => 
     },
     body: JSON.stringify({ recordId }),
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   const data: DeleteResponse = await response.json();
   return data;
-}; 
+};

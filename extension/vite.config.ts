@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [
@@ -12,17 +12,17 @@ export default defineConfig({
           type: 'asset',
           fileName: 'manifest.json',
           source: JSON.stringify({
-            "manifest_version": 3,
-            "name": "Save to Airtable",
-            "version": "1.0.0",
-            "permissions": ["storage", "activeTab"],
-            "host_permissions": ["https://*/*", "http://*/*"],
-            "action": {"default_popup": "popup.html"},
-            "background": {"service_worker": "background.js"}
-          }, null, 2)
-        })
-      }
-    }
+            manifest_version: 3,
+            name: 'Save to Airtable',
+            version: '1.0.0',
+            permissions: ['storage', 'activeTab'],
+            host_permissions: ['https://*/*', 'http://*/*'],
+            action: { default_popup: 'popup.html' },
+            background: { service_worker: 'background.js' },
+          }, null, 2),
+        });
+      },
+    },
   ],
   build: {
     outDir: 'dist',
@@ -34,11 +34,11 @@ export default defineConfig({
       output: {
         entryFileNames: '[name].js',
         chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]'
-      }
-    }
+        assetFileNames: '[name].[ext]',
+      },
+    },
   },
   define: {
     global: 'globalThis',
-  }
-}) 
+  },
+});

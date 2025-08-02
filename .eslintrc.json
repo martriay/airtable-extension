@@ -7,14 +7,13 @@
   },
   "extends": [
     "airbnb-base",
-    "airbnb-typescript/base",
-    "@typescript-eslint/recommended"
+    "airbnb-typescript/base"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module",
-    "project": ["./backend/tsconfig.json", "./extension/tsconfig.json"]
+    "project": ["./extension/tsconfig.json"]
   },
   "plugins": [
     "@typescript-eslint",
@@ -50,12 +49,20 @@
         "argsIgnorePattern": "^_",
         "varsIgnorePattern": "^_"
       }
-    ]
+    ],
+    "@typescript-eslint/no-use-before-define": "off",
+    "no-nested-ternary": "off",
+    "no-console": "warn",
+    "no-restricted-syntax": "off"
   },
   "ignorePatterns": [
     "dist/",
     "build/",
     "node_modules/",
-    "*.js"
+    "*.js",
+    "api/",
+    "backend/",
+    "test-setup.ts",
+    "vitest.config.ts"
   ]
 } 

@@ -5,78 +5,78 @@ import { getTags, deleteEntry, checkUrl } from './utils/api';
 // Clean title by removing common site suffixes
 function cleanTitle(title: string): string {
   if (!title) return title;
-  
+
   // Common patterns to remove (case insensitive)
   const suffixPatterns = [
     // YouTube variations
     /\s*[-–—|]\s*YouTube$/i,
     /\s*[-–—|]\s*youtube\.com$/i,
-    
+
     // Twitter/X variations
     /\s*[-–—|]\s*Twitter$/i,
     /\s*[-–—|]\s*X$/i,
     /\s*on\s+Twitter$/i,
     /\s*on\s+X$/i,
-    
+
     // Reddit variations
     /\s*[-–—|]\s*Reddit$/i,
     /\s*[-–—|]\s*r\/\w+$/i,
-    
+
     // LinkedIn variations
     /\s*[-–—|]\s*LinkedIn$/i,
-    
+
     // Facebook variations
     /\s*[-–—|]\s*Facebook$/i,
-    
+
     // Instagram variations
     /\s*[-–—|]\s*Instagram$/i,
-    
+
     // TikTok variations
     /\s*[-–—|]\s*TikTok$/i,
     /\s*on\s+TikTok$/i,
-    
+
     // Medium variations
     /\s*[-–—|]\s*Medium$/i,
-    
+
     // Vimeo variations
     /\s*[-–—|]\s*Vimeo$/i,
-    
+
     // Twitch variations
     /\s*[-–—|]\s*Twitch$/i,
-    
+
     // GitHub variations
     /\s*[-–—|]\s*GitHub$/i,
-    
+
     // Stack Overflow variations
     /\s*[-–—|]\s*Stack\s*Overflow$/i,
-    
+
     // Wikipedia variations
     /\s*[-–—|]\s*Wikipedia$/i,
-    
+
     // General news sites (common patterns)
     /\s*[-–—|]\s*BBC$/i,
     /\s*[-–—|]\s*CNN$/i,
     /\s*[-–—|]\s*The\s+\w+$/i, // "The Guardian", "The Times", etc.
-    
+
     // Generic patterns (be more conservative with these)
     /\s*[-–—|]\s*\w+\.com$/i, // domain.com
   ];
-  
+
   let cleanedTitle = title.trim();
-  
+
   // Apply each pattern
   for (const pattern of suffixPatterns) {
     cleanedTitle = cleanedTitle.replace(pattern, '').trim();
   }
-  
+
   // Remove any trailing separators that might be left
   cleanedTitle = cleanedTitle.replace(/\s*[-–—|]\s*$/, '').trim();
-  
+
   // If we cleaned everything away, return the original
   if (!cleanedTitle) {
     return title;
   }
-  
+
   return cleanedTitle;
 }
 
@@ -86,8 +86,8 @@ function Popup() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Start optimistic - will set to true only if needed
-  const [isInitializing, setIsInitializing] = useState(true); // Track if we're still checking the URL
+  const [isLoading, setIsLoading] = useState(false); // Start optimistic
+  const [isInitializing, setIsInitializing] = useState(true); // Track URL checking
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
@@ -106,7 +106,7 @@ function Popup() {
           const currentUrl = tabs[0].url || '';
           const rawTitle = tabs[0].title || '';
           const currentTitle = cleanTitle(rawTitle);
-          
+
           setUrl(currentUrl);
           setTitle(currentTitle);
 
@@ -115,9 +115,9 @@ function Popup() {
             console.log('🔄 Starting parallel fetch: tags + URL check for:', currentUrl);
             const [availTags, urlCheck] = await Promise.all([
               getTags(),
-              checkUrl(currentUrl)
+              checkUrl(currentUrl),
             ]);
-            
+
             console.log('📊 URL Check result:', JSON.stringify(urlCheck, null, 2));
             setAvailableTags(availTags);
 
@@ -126,14 +126,14 @@ function Popup() {
               console.log('🎯 URL already exists, populating form with existing data - NO SAVE NEEDED');
               const existingTitle = urlCheck.existingData.title;
               const existingTags = urlCheck.existingData.tags.join(', ');
-              
+
               setTitle(existingTitle);
               setTags(existingTags);
               setSavedRecordId(urlCheck.recordId || null);
-              setOriginalData({ 
-                url: currentUrl, 
-                title: existingTitle, 
-                tags: existingTags 
+              setOriginalData({
+                url: currentUrl,
+                title: existingTitle,
+                tags: existingTags,
               });
               setHasUnsavedChanges(false);
               setIsLoading(false); // Stop loading - no save needed
@@ -163,7 +163,7 @@ function Popup() {
   }, []);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
     setTitle(value);
     checkForChanges(url, value, tags);
   };
@@ -176,7 +176,7 @@ function Popup() {
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
     setUrl(value);
     checkForChanges(value, title, tags);
   };
@@ -189,19 +189,17 @@ function Popup() {
   };
 
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
     setTags(value);
     checkForChanges(url, title, value);
-    
+
     // Get the current word being typed
     const words = value.split(',');
     const currentWord = words[words.length - 1].trim().toLowerCase();
-    
+
     if (currentWord.length > 0) {
-      const suggestions = availableTags.filter(tag => 
-        tag.toLowerCase().includes(currentWord) && 
-        !words.slice(0, -1).map(w => w.trim().toLowerCase()).includes(tag.toLowerCase())
-      );
+      const suggestions = availableTags.filter((tag) => tag.toLowerCase().includes(currentWord)
+        && !words.slice(0, -1).map((w) => w.trim().toLowerCase()).includes(tag.toLowerCase()));
       setFilteredSuggestions(suggestions);
       setShowSuggestions(suggestions.length > 0);
       setActiveSuggestion(-1);
@@ -210,23 +208,21 @@ function Popup() {
     }
   };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showSuggestions) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveSuggestion(prev =>
-          prev < filteredSuggestions.length - 1 ? prev + 1 : prev
-        );
+        setActiveSuggestion((prev) => (prev < filteredSuggestions.length - 1 ? prev + 1 : prev));
         return;
-      } else if (e.key === 'ArrowUp') {
+      } if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setActiveSuggestion(prev => prev > 0 ? prev - 1 : -1);
+        setActiveSuggestion((prev) => (prev > 0 ? prev - 1 : -1));
         return;
-      } else if (e.key === 'Enter' && activeSuggestion >= 0) {
+      } if (e.key === 'Enter' && activeSuggestion >= 0) {
         e.preventDefault();
         selectSuggestion(filteredSuggestions[activeSuggestion]);
         return;
-      } else if (e.key === 'Escape') {
+      } if (e.key === 'Escape') {
         setShowSuggestions(false);
         setActiveSuggestion(-1);
         return;
@@ -243,14 +239,19 @@ function Popup() {
   const selectSuggestion = (suggestion: string) => {
     const words = tags.split(',');
     words[words.length - 1] = suggestion;
-    setTags(words.join(', ') + ', ');
+    setTags(`${words.join(', ')}, `);
     setShowSuggestions(false);
     setActiveSuggestion(-1);
     tagsInputRef.current?.focus();
   };
 
   // Core save function that can be used for both auto-save and manual updates
-  const performSave = async (saveUrl: string, saveTitle: string, saveTags: string[], forceUpdate = false) => {
+  const performSave = async (
+    saveUrl: string,
+    saveTitle: string,
+    saveTags: string[],
+    forceUpdate = false,
+  ) => {
     if (!saveUrl || !saveTitle) {
       setIsLoading(false);
       return;
@@ -267,8 +268,8 @@ function Popup() {
           title: saveTitle,
           tags: saveTags,
           source: 'Extension',
-          forceUpdate: forceUpdate,
-          recordId: savedRecordId
+          forceUpdate,
+          recordId: savedRecordId,
         }),
       });
 
@@ -277,18 +278,18 @@ function Popup() {
       }
 
       const result = await response.json();
-      
+
       if (result.duplicate) {
         setSavedRecordId(result.existingId);
-        
+
         // If we have existing data, populate the form
         if (result.existingData && !forceUpdate) {
           setTitle(result.existingData.title);
           setTags(result.existingData.tags.join(', '));
-          setOriginalData({ 
-            url: saveUrl, 
-            title: result.existingData.title, 
-            tags: result.existingData.tags.join(', ') 
+          setOriginalData({
+            url: saveUrl,
+            title: result.existingData.title,
+            tags: result.existingData.tags.join(', '),
           });
           setHasUnsavedChanges(false);
         } else {
@@ -316,7 +317,7 @@ function Popup() {
 
     setIsLoading(true);
 
-    const tagArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    const tagArray = tags.split(',').map((tag) => tag.trim()).filter((tag) => tag);
     // Use forceUpdate if we have unsaved changes and an existing record
     const shouldUpdate = hasUnsavedChanges && !!savedRecordId;
     await performSave(url, title, tagArray, shouldUpdate);
@@ -346,31 +347,31 @@ function Popup() {
 
   // Track changes to enable/disable update button
   const checkForChanges = (newUrl: string, newTitle: string, newTags: string) => {
-    const hasChanges = newUrl !== originalData.url || 
-                      newTitle !== originalData.title || 
-                      newTags !== originalData.tags;
+    const hasChanges = newUrl !== originalData.url
+                      || newTitle !== originalData.title
+                      || newTags !== originalData.tags;
     setHasUnsavedChanges(hasChanges);
   };
 
   return (
-    <div style={{ 
+    <div style={{
       minWidth: '320px',
       maxWidth: '500px',
       width: 'max-content',
-      minHeight: '300px', 
-      padding: '14px', 
+      minHeight: '300px',
+      padding: '14px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       backgroundColor: '#ffffff',
-      borderRadius: '8px'
+      borderRadius: '8px',
     }}>
-      
+
       <div style={{ marginBottom: '12px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '4px', 
-          fontSize: '13px', 
+        <label style={{
+          display: 'block',
+          marginBottom: '4px',
+          fontSize: '13px',
           fontWeight: '500',
-          color: '#374151'
+          color: '#374151',
         }}>
           Title:
         </label>
@@ -391,18 +392,18 @@ function Popup() {
                         lineHeight: '1.4',
                         boxSizing: 'border-box',
                         wordWrap: 'break-word',
-                        overflowWrap: 'break-word'
+                        overflowWrap: 'break-word',
                       }}
                     />
       </div>
 
       <div style={{ marginBottom: '12px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '4px', 
-          fontSize: '13px', 
+        <label style={{
+          display: 'block',
+          marginBottom: '4px',
+          fontSize: '13px',
           fontWeight: '500',
-          color: '#374151'
+          color: '#374151',
         }}>
           URL:
         </label>
@@ -422,18 +423,18 @@ function Popup() {
                         minHeight: '44px',
                         lineHeight: '1.4',
                         boxSizing: 'border-box',
-                        wordBreak: 'break-all'
+                        wordBreak: 'break-all',
                       }}
                     />
       </div>
 
       <div style={{ marginBottom: '16px', position: 'relative' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '4px', 
-          fontSize: '13px', 
+        <label style={{
+          display: 'block',
+          marginBottom: '4px',
+          fontSize: '13px',
           fontWeight: '500',
-          color: '#374151'
+          color: '#374151',
         }}>
           Tags (comma-separated):
         </label>
@@ -458,10 +459,10 @@ function Popup() {
             borderRadius: '6px',
             fontSize: '14px',
             fontFamily: 'inherit',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
           }}
         />
-        
+
         {showSuggestions && (
           <div style={{
             position: 'absolute',
@@ -474,7 +475,7 @@ function Popup() {
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             zIndex: 1000,
             maxHeight: '150px',
-            overflowY: 'auto'
+            overflowY: 'auto',
           }}>
             {filteredSuggestions.map((suggestion, index) => (
               <div
@@ -485,7 +486,7 @@ function Popup() {
                   cursor: 'pointer',
                   fontSize: '14px',
                   backgroundColor: index === activeSuggestion ? '#f3f4f6' : 'white',
-                  borderBottom: index < filteredSuggestions.length - 1 ? '1px solid #e5e7eb' : 'none'
+                  borderBottom: index < filteredSuggestions.length - 1 ? '1px solid #e5e7eb' : 'none',
                 }}
                 onMouseEnter={() => setActiveSuggestion(index)}
               >
@@ -501,33 +502,33 @@ function Popup() {
           onClick={handleSave}
           disabled={isInitializing || isLoading || (!hasUnsavedChanges && !!savedRecordId)}
                                 style={{
-                        flex: '1',
-                        padding: '12px 16px',
-                        backgroundColor: 
-                          isInitializing ? '#f9fafb' :
-                          isLoading ? '#9ca3af' :
-                          (!hasUnsavedChanges && savedRecordId) ? '#059669' :
-                          hasUnsavedChanges ? '#d97706' : '#2563eb',
-                        color: isInitializing ? '#9ca3af' : 'white',
-                        border: isInitializing ? '2px solid #e5e7eb' : 'none',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        cursor: (isInitializing || isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.3s ease',
-                        opacity: isInitializing ? 0.6 : 1,
-                        minHeight: '44px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
+                                  flex: '1',
+                                  padding: '12px 16px',
+                                  backgroundColor:
+                          isInitializing ? '#f9fafb'
+                            : isLoading ? '#9ca3af'
+                              : (!hasUnsavedChanges && savedRecordId) ? '#059669'
+                                : hasUnsavedChanges ? '#d97706' : '#2563eb',
+                                  color: isInitializing ? '#9ca3af' : 'white',
+                                  border: isInitializing ? '2px solid #e5e7eb' : 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                  cursor: (isInitializing || isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.3s ease',
+                                  opacity: isInitializing ? 0.6 : 1,
+                                  minHeight: '44px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
                     >
-                      {isInitializing ? '⚡' :
-                       isLoading ? 'Saving...' :
-                       (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
-                       hasUnsavedChanges ? 'Update' : 'Save'}
+                      {isInitializing ? '⚡'
+                        : isLoading ? 'Saving...'
+                          : (!hasUnsavedChanges && savedRecordId) ? 'Saved'
+                            : hasUnsavedChanges ? 'Update' : 'Save'}
         </button>
-        
+
         {savedRecordId && (
           <button
             onClick={handleDelete}
@@ -546,7 +547,7 @@ function Popup() {
               transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}
           >
             {isDeleting ? '...' : (
@@ -568,4 +569,4 @@ const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
   root.render(<Popup />);
-} 
+}
