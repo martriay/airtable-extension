@@ -120,7 +120,7 @@ function Popup() {
 
             if (urlCheck.exists && urlCheck.existingData) {
               // URL already exists - populate form with existing data
-              console.log('URL already exists, populating form with existing data');
+              console.log('🎯 URL already exists, populating form with existing data - NO SAVE NEEDED');
               const existingTitle = urlCheck.existingData.title;
               const existingTags = urlCheck.existingData.tags.join(', ');
               
@@ -134,9 +134,10 @@ function Popup() {
               });
               setHasUnsavedChanges(false);
               setIsLoading(false); // Stop loading - no save needed
+              console.log('✅ Form populated instantly, button should show "Saved"');
             } else {
               // New URL - auto-save with cleaned title
-              console.log('New URL detected, auto-saving');
+              console.log('🆕 New URL detected, auto-saving');
               setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
               await performSave(currentUrl, currentTitle, []);
             }
