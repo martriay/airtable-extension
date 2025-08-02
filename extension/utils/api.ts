@@ -92,14 +92,39 @@ export const deleteUnit = async (recordId: string): Promise<void> => {
 };
 
 export const getTags = async (): Promise<string[]> => {
+  // Try to get cached tags first
+  const cachedTags = localStorage.getItem('airtable-extension-tags');
+  const cacheTimestamp = localStorage.getItem('airtable-extension-tags-timestamp');
+  
+  // Use cache if it's less than 1 hour old
+  if (cachedTags && cacheTimestamp) {
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    if (parseInt(cacheTimestamp) > oneHourAgo) {
+      console.log('🚀 Using cached tags (fast path)');
+      return JSON.parse(cachedTags);
+    }
+  }
+  
+  console.log('📡 Fetching fresh tags from API (slow path)');
   const response = await fetch(`${BACKEND_URL}/api/tags`);
   
   if (!response.ok) {
+    // If API fails, return cached tags if available
+    if (cachedTags) {
+      console.log('⚠️ API failed, using stale cached tags');
+      return JSON.parse(cachedTags);
+    }
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   
   const data: TagsResponse = await response.json();
-  return data.tags || [];
+  const tags = data.tags || [];
+  
+  // Cache the results
+  localStorage.setItem('airtable-extension-tags', JSON.stringify(tags));
+  localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
+  
+  return tags;
 };
 
 export const checkUrl = async (url: string): Promise<CheckResponse> => {
