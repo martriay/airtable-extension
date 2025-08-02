@@ -1,4 +1,4 @@
-const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
+const BACKEND_URL = 'https://airtable-extension-qt2vcr798-martriays-projects.vercel.app';
 
 export interface SaveRequest {
   url: string;
@@ -12,6 +12,21 @@ export interface SaveResponse {
   id?: string;
   existingId?: string;
   error?: string;
+}
+
+export interface CheckRequest {
+  url: string;
+}
+
+export interface CheckResponse {
+  exists: boolean;
+  recordId?: string;
+  existingData?: {
+    title: string;
+    tags: string[];
+  };
+  error?: string;
+  details?: string;
 }
 
 export interface TagOption {
@@ -85,6 +100,22 @@ export const getTags = async (): Promise<string[]> => {
   
   const data: TagsResponse = await response.json();
   return data.tags || [];
+};
+
+export const checkUrl = async (url: string): Promise<CheckResponse> => {
+  const response = await fetch(`${BACKEND_URL}/api/check`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  return await response.json();
 };
 
 export interface DeleteResponse {

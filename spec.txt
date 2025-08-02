@@ -63,6 +63,12 @@ Returns: {duplicate:boolean, id?:string, existingId?:string, existingData?:{titl
 GET /api/tags
 Returns: {"tags": ["tag1","tag2"...], "count": N}
 
+POST /api/check body:
+{
+  "url": "<raw url>"
+}
+Returns: {"exists": boolean, "recordId"?: string, "existingData"?: {"title": string, "tags": string[]}, "error"?: string, "details"?: string}
+
 DELETE /api/delete body:
 {
   "recordId": "recXXXXXX"
@@ -127,10 +133,14 @@ popup.tsx (React component):
                          [Delete Button] (trash icon)
 
 Behaviour:
-• On mount (useEffect)
-    – chrome.tabs.query → fill title + url from active tab
-    – fetch("/api/tags") → populate availableTags for suggestions
-    – performSave(url, title, []) → auto-save immediately
+• On mount (useEffect) - Smart Initialization
+    – chrome.tabs.query → get title + url from active tab
+    – cleanTitle() → remove site suffixes from title
+    – Parallel execution:
+      • fetch("/api/tags") → populate availableTags for suggestions
+      • POST("/api/check") → check if URL already exists
+    – If URL exists: populate form with existing data (no save needed)
+    – If URL is new: performSave(url, cleanedTitle, []) → auto-save
 • On input change → checkForChanges() → set hasUnsavedChanges flag
 • Keyboard shortcuts:
     – Enter on Title/URL/Tags → trigger save (if hasUnsavedChanges && savedRecordId)
@@ -223,7 +233,7 @@ Deployment:
 ──────────────────────────────────
 7. Current Behavior & Acceptance Tests
 ──────────────────────────────────
-✔ Auto-save on popup open → immediate save with "Saving..." button state
+✔ Smart popup initialization → check URL first, only save if new (faster for existing URLs)
 ✔ Title cleaning → site suffixes like "- YouTube", "| Twitter" automatically removed
 ✔ Unique URL → button shows "Saved" (green, disabled)
 ✔ Duplicate URL → form populated with existing title/tags, button shows "Saved"
@@ -246,7 +256,7 @@ Deployment:
 ──────────────────────────────────
 8. Current Implementation Notes
 ──────────────────────────────────
-• Auto-save happens immediately on popup open (no debouncing)
+• Smart initialization: check URL existence first, only auto-save if new (performance optimized)
 • Title cleaning removes site suffixes using comprehensive regex patterns
 • Form population from existing entries for easy editing
 • No toast messages - all feedback through button states only

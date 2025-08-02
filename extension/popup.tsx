@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { getTags, deleteEntry } from './utils/api';
+import { getTags, deleteEntry, checkUrl } from './utils/api';
 
 // Clean title by removing common site suffixes
 function cleanTitle(title: string): string {
@@ -98,7 +98,7 @@ function Popup() {
   const tagsInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const initializeAndAutoSave = async () => {
+    const initializeSmartly = async () => {
       // Get current tab info
       chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         if (tabs[0]) {
@@ -108,24 +108,50 @@ function Popup() {
           
           setUrl(currentUrl);
           setTitle(currentTitle);
-          setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
 
-          // Fetch available tags from Airtable
           try {
-            const availTags = await getTags();
+            // Fetch available tags in parallel with URL check
+            const [availTags, urlCheck] = await Promise.all([
+              getTags(),
+              checkUrl(currentUrl)
+            ]);
+            
             setAvailableTags(availTags);
-          } catch (error) {
-            console.error('Failed to fetch tags:', error);
-            setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
-          }
 
-          // Auto-save immediately
-          await performSave(currentUrl, currentTitle, []);
+            if (urlCheck.exists && urlCheck.existingData) {
+              // URL already exists - populate form with existing data
+              console.log('URL already exists, populating form with existing data');
+              const existingTitle = urlCheck.existingData.title;
+              const existingTags = urlCheck.existingData.tags.join(', ');
+              
+              setTitle(existingTitle);
+              setTags(existingTags);
+              setSavedRecordId(urlCheck.recordId || null);
+              setOriginalData({ 
+                url: currentUrl, 
+                title: existingTitle, 
+                tags: existingTags 
+              });
+              setHasUnsavedChanges(false);
+              setIsLoading(false); // Stop loading - no save needed
+            } else {
+              // New URL - auto-save with cleaned title
+              console.log('New URL detected, auto-saving');
+              setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
+              await performSave(currentUrl, currentTitle, []);
+            }
+          } catch (error) {
+            console.error('Failed to initialize:', error);
+            // Fallback to basic initialization
+            setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
+            setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
+            setIsLoading(false);
+          }
         }
       });
     };
 
-    initializeAndAutoSave();
+    initializeSmartly();
   }, []);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
