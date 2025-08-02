@@ -86,7 +86,8 @@ function Popup() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
-  const [isLoading, setIsLoading] = useState(true); // Start with loading true for auto-save
+  const [isLoading, setIsLoading] = useState(false); // Start optimistic - will set to true only if needed
+  const [isInitializing, setIsInitializing] = useState(true); // Track if we're still checking the URL
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
@@ -111,11 +112,13 @@ function Popup() {
 
           try {
             // Fetch available tags in parallel with URL check
+            console.log('🔄 Starting parallel fetch: tags + URL check for:', currentUrl);
             const [availTags, urlCheck] = await Promise.all([
               getTags(),
               checkUrl(currentUrl)
             ]);
             
+            console.log('📊 URL Check result:', JSON.stringify(urlCheck, null, 2));
             setAvailableTags(availTags);
 
             if (urlCheck.exists && urlCheck.existingData) {
@@ -134,12 +137,15 @@ function Popup() {
               });
               setHasUnsavedChanges(false);
               setIsLoading(false); // Stop loading - no save needed
+              setIsInitializing(false); // Done initializing
               console.log('✅ Form populated instantly, button should show "Saved"');
             } else {
               // New URL - auto-save with cleaned title
               console.log('🆕 New URL detected, auto-saving');
+              setIsLoading(true); // Only show loading for new URLs that need saving
               setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
               await performSave(currentUrl, currentTitle, []);
+              setIsInitializing(false); // Done initializing
             }
           } catch (error) {
             console.error('Failed to initialize:', error);
@@ -147,6 +153,7 @@ function Popup() {
             setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
             setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
             setIsLoading(false);
+            setIsInitializing(false); // Done initializing
           }
         }
       });
@@ -492,26 +499,33 @@ function Popup() {
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button
           onClick={handleSave}
-          disabled={isLoading || (!hasUnsavedChanges && !!savedRecordId)}
+          disabled={isInitializing || isLoading || (!hasUnsavedChanges && !!savedRecordId)}
                                 style={{
                         flex: '1',
                         padding: '12px 16px',
-                        backgroundColor: isLoading ? '#9ca3af' :
-                                        (!hasUnsavedChanges && savedRecordId) ? '#10b981' :
-                                        hasUnsavedChanges ? '#2563eb' : '#2563eb',
-                        color: 'white',
-                        border: 'none',
+                        backgroundColor: 
+                          isInitializing ? '#f9fafb' :
+                          isLoading ? '#9ca3af' :
+                          (!hasUnsavedChanges && savedRecordId) ? '#059669' :
+                          hasUnsavedChanges ? '#d97706' : '#2563eb',
+                        color: isInitializing ? '#9ca3af' : 'white',
+                        border: isInitializing ? '2px solid #e5e7eb' : 'none',
                         borderRadius: '6px',
                         fontSize: '14px',
                         fontWeight: '500',
-                        cursor: (isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
-                        transition: 'background-color 0.2s',
-                        opacity: (!hasUnsavedChanges && savedRecordId) ? 0.7 : 1
+                        cursor: (isInitializing || isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s ease',
+                        opacity: isInitializing ? 0.6 : 1,
+                        minHeight: '44px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}
                     >
-                      {isLoading ? 'Saving...' :
+                      {isInitializing ? '⚡' :
+                       isLoading ? 'Saving...' :
                        (!hasUnsavedChanges && savedRecordId) ? 'Saved' :
-                       hasUnsavedChanges ? 'Update' : 'Save to Airtable'}
+                       hasUnsavedChanges ? 'Update' : 'Save'}
         </button>
         
         {savedRecordId && (
