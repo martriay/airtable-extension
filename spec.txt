@@ -1,4 +1,4 @@
-APP SPEC — "Save to Airtable" (Current Implementation v2.2)
+APP SPEC — "Save to Airtable" (Current Implementation v3.0)
 
 ──────────────────────────────────
 0. Goal
@@ -10,6 +10,9 @@ APP SPEC — "Save to Airtable" (Current Implementation v2.2)
 • Form population from existing entries for easy editing.
 • Button-only feedback system (no toast messages).
 • Enter key support for quick updates.
+• Status management with "Mark as Done" and "Mark as Next" functionality.
+• Smart status display with colloquial date formatting.
+• Undo functionality for status changes.
 
 ──────────────────────────────────
 1. Airtable Schema
@@ -24,9 +27,10 @@ Link          URL             yes         yes             canonical URL
 Tags          Multiple-select no          yes             array of tag strings (auto-created)
 Status        Single-select   no          optional        "To do" (when supported)
 Type          Single-select   no          optional        auto-detected content type
+Done date     Date            no          optional        completion date (YYYY-MM-DD)
 
 Optional Single-Select Options (if fields exist):
-Status: "To do", "In progress", "Done"
+Status: "To do", "In progress", "Next", "Done"
 Type: "Twitter thread", "Reddit thread", "Video", "Article"
 
 Note: Status and Type fields are optional to handle tables without these fields.
@@ -67,13 +71,31 @@ POST /api/check body:
 {
   "url": "<raw url>"
 }
-Returns: {"exists": boolean, "recordId"?: string, "existingData"?: {"title": string, "tags": string[]}, "error"?: string, "details"?: string}
+Returns: {"exists": boolean, "recordId"?: string, "existingData"?: {"title": string, "tags": string[], "status"?: string, "doneDate"?: string}, "error"?: string, "details"?: string}
 
 DELETE /api/delete body:
 {
   "recordId": "recXXXXXX"
 }
 Returns: {"success": boolean, "error"?: string, "details"?: string}
+
+POST /api/mark-done body:
+{
+  "recordId": "recXXXXXX"
+}
+Returns: {"success": boolean, "recordId"?: string, "doneDate"?: string, "error"?: string, "details"?: string}
+
+POST /api/mark-next body:
+{
+  "recordId": "recXXXXXX"
+}
+Returns: {"success": boolean, "recordId"?: string, "status"?: string, "error"?: string, "details"?: string}
+
+POST /api/mark-todo body:
+{
+  "recordId": "recXXXXXX"
+}
+Returns: {"success": boolean, "recordId"?: string, "status"?: string, "error"?: string, "details"?: string}
 
 Process (/api/save):
 1. Clean title (cleanTitle function)
@@ -129,8 +151,8 @@ popup.tsx (React component):
  Title  <textarea value={title} onChange={handleTitleChange} onKeyDown={handleTitleKeyDown} rows={2}>
  URL    <textarea value={url} onChange={handleUrlChange} onKeyDown={handleUrlKeyDown} rows={2}>
  Tags   <input value={tags} onChange={handleTagsChange} onKeyDown={handleKeyDown} (with typeahead)>
-                         [Save/Update Button] (no toast messages)
-                         [Delete Button] (trash icon)
+                         [Save/Update/Status Button] [Done] [Next] [Delete]
+                         (main button shows status)   (✓)   (▶️)  (🗑️)
 
 Behaviour:
 • On mount (useEffect) - Smart Initialization
@@ -150,9 +172,21 @@ Behaviour:
     – Escape → close suggestions
 • Button states (ONLY feedback mechanism):
     – isLoading: "Saving..." (gray, disabled)
-    – !hasUnsavedChanges && savedRecordId: "Saved" (green, disabled)
-    – hasUnsavedChanges: "Update" (blue, enabled)
+    – !hasUnsavedChanges && savedRecordId: Status display (gray, non-clickable)
+      • "Done today" / "Done on [date]" (colloquial date format)
+      • "Next" (simple status)
+      • "To do" (simple status)
+      • "Status: [other]" (prefixed for unknown statuses)
+    – hasUnsavedChanges: "Update" (purple, enabled)
     – default: "Save to Airtable" (blue, enabled)
+• Action buttons (when savedRecordId exists):
+    – Done button (✓): Toggle between mark as done / undo to "To do"
+      • Inactive: white background, green border (clickable)
+      • Active (done): light green background, dark green text (clickable to undo)
+    – Next button (▶️): Toggle between mark as next / undo to "To do"
+      • Inactive: white background, blue border (clickable)
+      • Active (next): light blue background, dark blue text (clickable to undo)
+    – Delete button (🗑️): red border, always available (immediate action)
 • performSave()
     POST /api/save
     duplicate with existingData → populate form fields with current values
@@ -170,6 +204,13 @@ Behaviour:
     – Next time extension opens: new tags appear in suggestions
 • Update workflow: forceUpdate=true when hasUnsavedChanges && savedRecordId
 • Delete button: visible when savedRecordId exists, immediate action (no confirmation dialog)
+• Status management workflow:
+    – Mark as Done: sets Status="Done", Done date=today (YYYY-MM-DD)
+    – Mark as Next: sets Status="Next", clears Done date
+    – Undo (from active buttons): sets Status="To do", clears Done date
+    – Status buttons are toggles: clicking active status reverts to "To do"
+• Date formatting: colloquial display ("Done today", "Done yesterday", "Done on Month Dth, YYYY")
+  with timezone-safe parsing to avoid date shifting issues
 
 Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
 
@@ -187,8 +228,12 @@ Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
   save.ts                ← Main save endpoint with deduplication (Status/Type optional)
   tags.ts                ← Dynamic tag suggestions endpoint  
   delete.ts              ← Delete record endpoint
+  check.ts               ← Check URL existence with status/date info
+  mark-done.ts           ← Mark record as done with date
+  mark-next.ts           ← Mark record as next, clear date
+  mark-todo.ts           ← Mark record as to do, clear date
   src/
-    airtable.ts          ← Airtable API helpers (findByUrl, create, detectContentType, getAllRecords, update, deleteRecord)
+    airtable.ts          ← Airtable API helpers (findByUrl, create, detectContentType, getAllRecords, update, deleteRecord, markAsDone, markAsNext, markAsTodo)
     canonical.ts         ← URL canonicalization utilities
 
 /extension               ← Chrome Extension (MV3)
@@ -197,7 +242,7 @@ Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
   background.ts          ← Service worker
   manifest.json          ← Extension manifest
   vite.config.ts         ← Build configuration with manifest plugin
-  utils/api.ts           ← API client utilities (getTags, postSave, deleteEntry)
+  utils/api.ts           ← API client utilities (getTags, postSave, deleteEntry, markAsDone, markAsNext, markAsTodo)
 
 /backend                 ← Legacy backend (tests only)
   src/                   ← Shared utilities
@@ -235,10 +280,10 @@ Deployment:
 ──────────────────────────────────
 ✔ Smart popup initialization → check URL first, only save if new (faster for existing URLs)
 ✔ Title cleaning → site suffixes like "- YouTube", "| Twitter" automatically removed
-✔ Unique URL → button shows "Saved" (green, disabled)
-✔ Duplicate URL → form populated with existing title/tags, button shows "Saved"
-✔ Edit populated fields → button changes to "Update" (blue)
-✔ Click update → saves changes, button returns to "Saved" state
+✔ Unique URL → button shows status information (gray, non-clickable)
+✔ Duplicate URL → form populated with existing title/tags/status, button shows status
+✔ Edit populated fields → button changes to "Update" (purple)
+✔ Click update → saves changes, button returns to status display
 ✔ Enter key on any field → triggers update (if changes exist)
 ✔ Shift+Enter → allows multi-line input in textareas
 ✔ Type detection → Twitter/Reddit/Video/Article auto-assigned (when supported)
@@ -249,21 +294,27 @@ Deployment:
 ✔ Status field → "To do" automatically set (when field exists)
 ✔ YouTube deduplication → URLs with playlists/timestamps treated as same video
 ✔ Form population → existing entries auto-fill for easy editing
-✔ Button-only feedback → no toast messages, all status in button
+✔ Button-only feedback → no toast messages, all status in buttons
 ✔ Delete button → visible when saved, immediate action (no confirmation dialog)
 ✔ Flexible schema → works with tables that don't have Status/Type fields
+✔ Status management → Mark as Done/Next buttons with visual toggle states
+✔ Undo functionality → Active status buttons clickable to revert to "To do"
+✔ Smart date display → "Done today", "Done yesterday", "Done on Month Dth, YYYY"
+✔ Timezone-safe dates → Local date parsing prevents day-shifting issues
+✔ Status display modes → Clean text for common statuses (Done, Next, To do)
+✔ Action button feedback → Visual "turned on" state with colored backgrounds
 
 ──────────────────────────────────
 8. Current Implementation Notes
 ──────────────────────────────────
 • Smart initialization: check URL existence first, only auto-save if new (performance optimized)
 • Title cleaning removes site suffixes using comprehensive regex patterns
-• Form population from existing entries for easy editing
+• Form population from existing entries for easy editing including status/date info
 • No toast messages - all feedback through button states only
-• No undo functionality (removed from original spec)
+• Status management with undo functionality (toggle active statuses back to "To do")
 • No caching in chrome.storage (tags fetched fresh each time)
 • Change tracking compares against original saved data
-• Button disabled when no changes detected or when loading
+• Main button non-clickable when displaying status (purely informational)
 • Uses native fetch API instead of axios
 • No Chakra UI (custom inline styles)
 • Vercel Serverless Functions instead of Edge Runtime
@@ -275,3 +326,8 @@ Deployment:
 • Tag creation via typecast parameter - new multiple-select options auto-created
 • Status/Type fields are optional for compatibility with different table schemas
 • Graceful degradation when Airtable fields don't exist
+• Status workflow: Done (with date) ↔ To do ↔ Next (toggle via action buttons)
+• Colloquial date formatting with timezone-safe parsing (prevents day-shifting)
+• Visual button states: "turned on" statuses show colored backgrounds but remain clickable
+• Color harmony: blue primary, purple update, green done, blue next, red delete
+• Clean status text: "Done today", "Next", "To do" (no prefixes for common statuses)

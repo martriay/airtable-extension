@@ -25,6 +25,7 @@ interface AirtableRecord {
     Tags: string[];
     Status?: string;
     Type?: string;
+    'Done date'?: string;
   };
 }
 
@@ -38,6 +39,7 @@ interface CreateRecord {
   Tags?: string[];
   Status?: string;
   Type?: string;
+  'Done date'?: string;
 }
 
 // Function to detect content type based on URL
@@ -236,6 +238,257 @@ export async function update(recordId: string, fields: Partial<CreateRecord>): P
   
   const data: AirtableRecord = await response.json();
   return data;
+}
+
+export async function markAsTodo(recordId: string): Promise<AirtableRecord> {
+  // Try different approaches in order of preference
+  const statusOptions = ['To do', 'to do', 'Todo', 'TODO', 'Pending', 'Open'];
+  
+  console.log('Marking record as to do:', recordId);
+  
+  // First attempt: Try with both Status and clearing Done date
+  for (const statusValue of statusOptions) {
+    const fields = {
+      Status: statusValue,
+      'Done date': null  // Clear the done date
+    };
+    
+    const body = {
+      fields: fields,
+      typecast: true  // This should create new single-select options
+    };
+    
+    console.log(`Trying status value: "${statusValue}"`);
+    
+    const response = await fetch(`${BASE_URL}/${recordId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body)
+    });
+    
+    if (response.ok) {
+      console.log(`✅ Successfully marked as to do with status: "${statusValue}"`);
+      const data: AirtableRecord = await response.json();
+      return data;
+    }
+    
+    const errorText = await response.text();
+    console.log(`❌ Failed with status "${statusValue}":`, errorText);
+  }
+  
+  // Second attempt: Try with just clearing Done date field (no status change)
+  console.log('Trying with just clearing Done date field...');
+  const dateOnlyBody = {
+    fields: { 'Done date': null },
+    typecast: true
+  };
+  
+  const dateResponse = await fetch(`${BASE_URL}/${recordId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(dateOnlyBody)
+  });
+  
+  if (dateResponse.ok) {
+    console.log('✅ Successfully cleared Done date (status unchanged)');
+    const data: AirtableRecord = await dateResponse.json();
+    return data;
+  }
+  
+  // Third attempt: Try different date field names to clear
+  const dateFieldOptions = ['Done date', 'Done Date', 'Completed Date', 'Completion Date', 'Date Completed'];
+  
+  for (const dateField of dateFieldOptions) {
+    console.log(`Trying to clear date field: "${dateField}"`);
+    const dateFieldBody = {
+      fields: { [dateField]: null },
+      typecast: true
+    };
+    
+    const response = await fetch(`${BASE_URL}/${recordId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(dateFieldBody)
+    });
+    
+    if (response.ok) {
+      console.log(`✅ Successfully cleared date using field: "${dateField}"`);
+      const data: AirtableRecord = await response.json();
+      return data;
+    }
+  }
+  
+  // If all attempts fail, throw an error
+  const finalErrorResponse = await dateResponse.text();
+  throw new Error(`Failed to mark as to do. Last error: ${finalErrorResponse}`);
+}
+
+export async function markAsNext(recordId: string): Promise<AirtableRecord> {
+  // Try different approaches in order of preference
+  const statusOptions = ['Next', 'next', 'In progress', 'To do', 'Active'];
+  
+  console.log('Marking record as next:', recordId);
+  
+  // First attempt: Try with both Status and clearing Done date
+  for (const statusValue of statusOptions) {
+    const fields = {
+      Status: statusValue,
+      'Done date': null  // Clear the done date
+    };
+    
+    const body = {
+      fields: fields,
+      typecast: true  // This should create new single-select options
+    };
+    
+    console.log(`Trying status value: "${statusValue}"`);
+    
+    const response = await fetch(`${BASE_URL}/${recordId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body)
+    });
+    
+    if (response.ok) {
+      console.log(`✅ Successfully marked as next with status: "${statusValue}"`);
+      const data: AirtableRecord = await response.json();
+      return data;
+    }
+    
+    const errorText = await response.text();
+    console.log(`❌ Failed with status "${statusValue}":`, errorText);
+  }
+  
+  // Second attempt: Try with just clearing Done date field (no status change)
+  console.log('Trying with just clearing Done date field...');
+  const dateOnlyBody = {
+    fields: { 'Done date': null },
+    typecast: true
+  };
+  
+  const dateResponse = await fetch(`${BASE_URL}/${recordId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(dateOnlyBody)
+  });
+  
+  if (dateResponse.ok) {
+    console.log('✅ Successfully cleared Done date (status unchanged)');
+    const data: AirtableRecord = await dateResponse.json();
+    return data;
+  }
+  
+  // Third attempt: Try different date field names to clear
+  const dateFieldOptions = ['Done date', 'Done Date', 'Completed Date', 'Completion Date', 'Date Completed'];
+  
+  for (const dateField of dateFieldOptions) {
+    console.log(`Trying to clear date field: "${dateField}"`);
+    const dateFieldBody = {
+      fields: { [dateField]: null },
+      typecast: true
+    };
+    
+    const response = await fetch(`${BASE_URL}/${recordId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(dateFieldBody)
+    });
+    
+    if (response.ok) {
+      console.log(`✅ Successfully cleared date using field: "${dateField}"`);
+      const data: AirtableRecord = await response.json();
+      return data;
+    }
+  }
+  
+  // If all attempts fail, throw an error
+  const finalErrorResponse = await dateResponse.text();
+  throw new Error(`Failed to mark as next. Last error: ${finalErrorResponse}`);
+}
+
+export async function markAsDone(recordId: string): Promise<AirtableRecord> {
+  const todayDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  
+  // Try different approaches in order of preference
+  const statusOptions = ['Done', 'done', 'Complete', 'Completed', 'Finished'];
+  
+  console.log('Marking record as done:', recordId, 'with date:', todayDate);
+  
+  // First attempt: Try with both Status and Done date, with typecast to create new option
+  for (const statusValue of statusOptions) {
+    const fields = {
+      Status: statusValue,
+      'Done date': todayDate
+    };
+    
+    const body = {
+      fields: fields,
+      typecast: true  // This should create new single-select options
+    };
+    
+    console.log(`Trying status value: "${statusValue}"`);
+    
+    const response = await fetch(`${BASE_URL}/${recordId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body)
+    });
+    
+    if (response.ok) {
+      console.log(`✅ Successfully marked as done with status: "${statusValue}"`);
+      const data: AirtableRecord = await response.json();
+      return data;
+    }
+    
+    const errorText = await response.text();
+    console.log(`❌ Failed with status "${statusValue}":`, errorText);
+  }
+  
+  // Second attempt: Try with just Done date field (no status change)
+  console.log('Trying with just Done date field...');
+  const dateOnlyBody = {
+    fields: { 'Done date': todayDate },
+    typecast: true
+  };
+  
+  const dateResponse = await fetch(`${BASE_URL}/${recordId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(dateOnlyBody)
+  });
+  
+  if (dateResponse.ok) {
+    console.log('✅ Successfully set Done date (status unchanged)');
+    const data: AirtableRecord = await dateResponse.json();
+    return data;
+  }
+  
+  // Third attempt: Try different date field names
+  const dateFieldOptions = ['Done date', 'Done Date', 'Completed Date', 'Completion Date', 'Date Completed'];
+  
+  for (const dateField of dateFieldOptions) {
+    console.log(`Trying date field: "${dateField}"`);
+    const dateFieldBody = {
+      fields: { [dateField]: todayDate },
+      typecast: true
+    };
+    
+    const response = await fetch(`${BASE_URL}/${recordId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(dateFieldBody)
+    });
+    
+    if (response.ok) {
+      console.log(`✅ Successfully set date using field: "${dateField}"`);
+      const data: AirtableRecord = await response.json();
+      return data;
+    }
+  }
+  
+  // If all attempts fail, throw an error
+  const finalErrorResponse = await dateResponse.text();
+  throw new Error(`Failed to mark as done. Last error: ${finalErrorResponse}`);
 }
 
 export async function deleteRecord(recordId: string): Promise<void> {

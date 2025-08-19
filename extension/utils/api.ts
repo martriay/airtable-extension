@@ -1,4 +1,4 @@
-const BACKEND_URL = 'https://airtable-extension.vercel.app';
+const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
 
 export interface SaveRequest {
   url: string;
@@ -24,6 +24,8 @@ export interface CheckResponse {
   existingData?: {
     title: string;
     tags: string[];
+    status?: string;
+    doneDate?: string;
   };
   error?: string;
   details?: string;
@@ -149,6 +151,30 @@ export interface DeleteResponse {
   details?: string;
 }
 
+export interface MarkDoneResponse {
+  success: boolean;
+  recordId?: string;
+  doneDate?: string;
+  error?: string;
+  details?: string;
+}
+
+export interface MarkNextResponse {
+  success: boolean;
+  recordId?: string;
+  status?: string;
+  error?: string;
+  details?: string;
+}
+
+export interface MarkTodoResponse {
+  success: boolean;
+  recordId?: string;
+  status?: string;
+  error?: string;
+  details?: string;
+}
+
 export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => {
   const response = await fetch(`${BACKEND_URL}/api/delete`, {
     method: 'DELETE',
@@ -163,5 +189,56 @@ export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => 
   }
 
   const data: DeleteResponse = await response.json();
+  return data;
+};
+
+export const markAsDone = async (recordId: string): Promise<MarkDoneResponse> => {
+  const response = await fetch(`${BACKEND_URL}/api/mark-done`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ recordId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data: MarkDoneResponse = await response.json();
+  return data;
+};
+
+export const markAsNext = async (recordId: string): Promise<MarkNextResponse> => {
+  const response = await fetch(`${BACKEND_URL}/api/mark-next`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ recordId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data: MarkNextResponse = await response.json();
+  return data;
+};
+
+export const markAsTodo = async (recordId: string): Promise<MarkTodoResponse> => {
+  const response = await fetch(`${BACKEND_URL}/api/mark-todo`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ recordId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data: MarkTodoResponse = await response.json();
   return data;
 };

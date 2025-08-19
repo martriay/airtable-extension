@@ -1,6 +1,62 @@
 import { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { getTags, deleteEntry, checkUrl } from './utils/api';
+import {
+  getTags,
+  deleteEntry,
+  checkUrl,
+  markAsDone,
+  markAsNext,
+  markAsTodo,
+} from './utils/api';
+
+// Format date in a more colloquial way
+function formatColloquialDate(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    // Parse the date string as local date to avoid timezone issues
+    const [dateYear, dateMonth, dateDay] = dateString.split('-').map(Number);
+    const date = new Date(dateYear, dateMonth - 1, dateDay); // month is 0-indexed
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    // Check if it's today
+    if (itemDate.getTime() === today.getTime()) {
+      return 'Done today';
+    }
+    
+    // Check if it's yesterday
+    if (itemDate.getTime() === yesterday.getTime()) {
+      return 'Done yesterday';
+    }
+    
+    // Format as "Done on Month Dth, YYYY"
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    
+    // Add ordinal suffix
+    const getOrdinalSuffix = (day: number) => {
+      if (day > 3 && day < 21) return 'th';
+      switch (day % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+      }
+    };
+    
+    return `Done on ${month} ${day}${getOrdinalSuffix(day)}, ${year}`;
+  } catch (error) {
+    // Fallback to original format if parsing fails
+    return `Done ${dateString}`;
+  }
+}
 
 // Clean title by removing common site suffixes
 function cleanTitle(title: string): string {
@@ -96,6 +152,10 @@ function Popup() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalData, setOriginalData] = useState({ url: '', title: '', tags: '' });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMarkingDone, setIsMarkingDone] = useState(false);
+  const [isMarkingNext, setIsMarkingNext] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<string | undefined>(undefined);
+  const [doneDate, setDoneDate] = useState<string | undefined>(undefined);
   const tagsInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -130,6 +190,8 @@ function Popup() {
               setTitle(existingTitle);
               setTags(existingTags);
               setSavedRecordId(urlCheck.recordId || null);
+              setCurrentStatus(urlCheck.existingData.status);
+              setDoneDate(urlCheck.existingData.doneDate);
               setOriginalData({
                 url: currentUrl,
                 title: existingTitle,
@@ -139,6 +201,7 @@ function Popup() {
               setIsLoading(false); // Stop loading - no save needed
               setIsInitializing(false); // Done initializing
               console.log('✅ Form populated instantly, button should show "Saved"');
+              console.log('📊 Status:', urlCheck.existingData.status);
             } else {
               // New URL - auto-save with cleaned title
               console.log('🆕 New URL detected, auto-saving');
@@ -345,6 +408,66 @@ function Popup() {
     }
   };
 
+  // Handle mark as done (or undo if already done)
+  const handleMarkAsDone = async () => {
+    if (!savedRecordId) {
+      return;
+    }
+
+    setIsMarkingDone(true);
+
+    try {
+      if (currentStatus === 'Done') {
+        // Undo: Mark as "To do" and clear done date
+        const result = await markAsTodo(savedRecordId);
+        console.log('↩️ Successfully reverted from done to to-do');
+        setCurrentStatus(result.status || 'To do');
+        setDoneDate(undefined);
+      } else {
+        // Mark as done
+        const result = await markAsDone(savedRecordId);
+        console.log('✅ Successfully marked item as done');
+        setCurrentStatus('Done');
+        setDoneDate(result.doneDate || new Date().toISOString().split('T')[0]);
+      }
+    } catch (error) {
+      console.error('Mark as done/undo failed:', error);
+      // Keep the current state if operation fails
+    } finally {
+      setIsMarkingDone(false);
+    }
+  };
+
+  // Handle mark as next (or undo if already next)
+  const handleMarkAsNext = async () => {
+    if (!savedRecordId) {
+      return;
+    }
+
+    setIsMarkingNext(true);
+
+    try {
+      if (currentStatus === 'Next') {
+        // Undo: Mark as "To do" and clear done date
+        const result = await markAsTodo(savedRecordId);
+        console.log('↩️ Successfully reverted from next to to-do');
+        setCurrentStatus(result.status || 'To do');
+        setDoneDate(undefined);
+      } else {
+        // Mark as next
+        const result = await markAsNext(savedRecordId);
+        console.log('✅ Successfully marked item as next');
+        setCurrentStatus(result.status || 'Next');
+        setDoneDate(undefined); // Clear the done date
+      }
+    } catch (error) {
+      console.error('Mark as next/undo failed:', error);
+      // Keep the current state if operation fails
+    } finally {
+      setIsMarkingNext(false);
+    }
+  };
+
   // Track changes to enable/disable update button
   const checkForChanges = (newUrl: string, newTitle: string, newTags: string) => {
     const hasChanges = newUrl !== originalData.url
@@ -497,24 +620,31 @@ function Popup() {
         )}
       </div>
 
+
+
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button
-          onClick={handleSave}
-          disabled={isInitializing || isLoading || (!hasUnsavedChanges && !!savedRecordId)}
+          onClick={(!savedRecordId || hasUnsavedChanges) ? handleSave : undefined}
+          disabled={isInitializing || isLoading || (!!savedRecordId && !hasUnsavedChanges)}
                                 style={{
                                   flex: '1',
                                   padding: '12px 16px',
                                   backgroundColor:
                           isInitializing ? '#f9fafb'
                             : isLoading ? '#9ca3af'
-                              : (!hasUnsavedChanges && savedRecordId) ? '#059669'
-                                : hasUnsavedChanges ? '#d97706' : '#2563eb',
-                                  color: isInitializing ? '#9ca3af' : 'white',
-                                  border: isInitializing ? '2px solid #e5e7eb' : 'none',
+                              : (!hasUnsavedChanges && savedRecordId) ? '#f3f4f6'
+                                : hasUnsavedChanges ? '#7c3aed' : '#2563eb',
+                                  color: isInitializing ? '#9ca3af' 
+                                        : isLoading ? 'white'
+                                        : (!hasUnsavedChanges && savedRecordId) ? '#6b7280'
+                                        : 'white',
+                                  border: isInitializing ? '2px solid #e5e7eb' 
+                                         : (!hasUnsavedChanges && savedRecordId) ? '1px solid #d1d5db'
+                                         : 'none',
                                   borderRadius: '6px',
                                   fontSize: '14px',
                                   fontWeight: '500',
-                                  cursor: (isInitializing || isLoading || (!hasUnsavedChanges && savedRecordId)) ? 'not-allowed' : 'pointer',
+                                  cursor: (isInitializing || isLoading || (!!savedRecordId && !hasUnsavedChanges)) ? 'default' : 'pointer',
                                   transition: 'all 0.3s ease',
                                   opacity: isInitializing ? 0.6 : 1,
                                   minHeight: '44px',
@@ -525,9 +655,84 @@ function Popup() {
                     >
                       {isInitializing ? '⚡'
                         : isLoading ? 'Saving...'
-                          : (!hasUnsavedChanges && savedRecordId) ? 'Saved'
+                          : (!hasUnsavedChanges && savedRecordId) ? 
+                            (currentStatus === 'Done' && doneDate ? 
+                              formatColloquialDate(doneDate) :
+                              currentStatus === 'Next' ? 'Next' :
+                              currentStatus === 'To do' ? 'To do' :
+                              currentStatus ? `Status: ${currentStatus}` : 'Saved')
                             : hasUnsavedChanges ? 'Update' : 'Save'}
         </button>
+
+        {savedRecordId && (
+          <button
+            onClick={handleMarkAsDone}
+            disabled={isMarkingDone || isLoading}
+            title={currentStatus === 'Done' ? 'Undo Done (mark as To do)' : 'Mark as Done'}
+            style={{
+              width: '36px',
+              height: '44px',
+              padding: '0',
+              backgroundColor: isMarkingDone ? '#f3f4f6' 
+                              : currentStatus === 'Done' ? '#d1fae5'
+                              : '#ffffff',
+              color: isMarkingDone ? '#9ca3af'
+                    : currentStatus === 'Done' ? '#065f46'
+                    : '#059669',
+              border: `1px solid ${isMarkingDone ? '#d1d5db' 
+                                  : currentStatus === 'Done' ? '#a7f3d0'
+                                  : '#059669'}`,
+              borderRadius: '6px',
+              fontSize: '14px',
+              cursor: (isMarkingDone || isLoading) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {isMarkingDone ? '...' : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20,6 9,17 4,12"></polyline>
+              </svg>
+            )}
+          </button>
+        )}
+
+        {savedRecordId && (
+          <button
+            onClick={handleMarkAsNext}
+            disabled={isMarkingNext || isLoading}
+            title={currentStatus === 'Next' ? 'Undo Next (mark as To do)' : 'Mark as Next'}
+            style={{
+              width: '36px',
+              height: '44px',
+              padding: '0',
+              backgroundColor: isMarkingNext ? '#f3f4f6' 
+                              : currentStatus === 'Next' ? '#dbeafe'
+                              : '#ffffff',
+              color: isMarkingNext ? '#9ca3af'
+                    : currentStatus === 'Next' ? '#1d4ed8'
+                    : '#2563eb',
+              border: `1px solid ${isMarkingNext ? '#d1d5db' 
+                                  : currentStatus === 'Next' ? '#93c5fd'
+                                  : '#2563eb'}`,
+              borderRadius: '6px',
+              fontSize: '14px',
+              cursor: (isMarkingNext || isLoading) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {isMarkingNext ? '...' : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9,18 15,12 9,6"></polyline>
+              </svg>
+            )}
+          </button>
+        )}
 
         {savedRecordId && (
           <button

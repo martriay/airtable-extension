@@ -11,6 +11,8 @@ interface CheckResponse {
   existingData?: {
     title: string;
     tags: string[];
+    status?: string;
+    doneDate?: string;
   };
   error?: string;
   details?: string;
@@ -53,7 +55,9 @@ export default async function handler(req: any, res: any) {
         recordId: existingRecord.id,
         existingData: {
           title: existingRecord.fields.Name,
-          tags: existingRecord.fields.Tags || []
+          tags: existingRecord.fields.Tags || [],
+          status: existingRecord.fields.Status,
+          doneDate: existingRecord.fields['Done date']
         }
       };
       return res.status(200).json(response);
