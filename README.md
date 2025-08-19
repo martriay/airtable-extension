@@ -1,15 +1,28 @@
 # Save to Airtable
 
-A powerful Chrome extension for instantly saving web pages to Airtable with intelligent categorization, auto-save functionality, and smart duplicate prevention.
+A powerful Chrome extension for instantly saving web pages to Airtable with intelligent categorization, auto-save functionality, smart duplicate prevention, and comprehensive status management.
 
 ## Features
 
-- Auto-saves page when extension opens
-- Smart content type detection (Twitter, Reddit, Video, Article)
-- URL-based deduplication prevents duplicates
-- Dynamic tag suggestions from Airtable
-- Real-time change tracking with update button
-- Clean popup interface with visual feedback
+### 🚀 Core Functionality
+- **Auto-save**: Page instantly saves when extension opens
+- **Smart deduplication**: URL-based duplicate prevention
+- **Content type detection**: Automatically categorizes Twitter, Reddit, Video, Article
+- **Tag suggestions**: Dynamic autocomplete from your Airtable data
+- **Real-time tracking**: Detects changes and shows update button
+
+### ⚡ Status Management (v3.0)
+- **Mark as Done**: One-click completion with automatic date stamping
+- **Mark as Next**: Set items to "Next" status for prioritization  
+- **Smart undo**: Click active status buttons to revert to "To do"
+- **Visual feedback**: Action buttons show "turned on" states with colored backgrounds
+- **Date formatting**: Colloquial display ("Done today", "Done on January 15th, 2025")
+
+### 🎨 Enhanced UI/UX
+- **Status display**: Main button shows current status instead of generic "Saved"
+- **Action buttons**: Dedicated buttons for Done (✓), Next (▶️), and Delete (🗑️)
+- **Button-only feedback**: No toast messages, all information through button states
+- **Timezone-safe dates**: Prevents date shifting issues across timezones
 
 ## 📁 Repository Structure
 
@@ -17,8 +30,13 @@ A powerful Chrome extension for instantly saving web pages to Airtable with inte
 ├── api/                         # Vercel Serverless Functions
 │   ├── save.ts                  # Main save endpoint with deduplication
 │   ├── tags.ts                  # Dynamic tag suggestions endpoint
+│   ├── check.ts                 # Check URL existence with status info
+│   ├── delete.ts                # Delete records from Airtable
+│   ├── mark-done.ts             # Mark items as done with date
+│   ├── mark-next.ts             # Mark items as next, clear date
+│   ├── mark-todo.ts             # Mark items as to do, clear date
 │   └── src/
-│       ├── airtable.ts          # Airtable API helpers & type detection
+│       ├── airtable.ts          # Airtable API helpers & status management
 │       └── canonical.ts         # URL canonicalization utilities
 ├── extension/                   # Chrome Extension (MV3)
 │   ├── popup.tsx                # React popup with auto-save
@@ -94,12 +112,14 @@ Your Airtable table should have these fields:
 | `Tags` | Multiple select | Content tags | ✅ |
 | `Status` | Single select | Entry status | ✅ |
 | `Type` | Single select | Content type | ✅ |
+| `Done date` | Date | Completion date | ⭐ **New in v3.0** |
 
-#### Required Single Select Options:
+#### Single Select Options:
 
 **Status field options:**
 - `To do` (default for new entries)
 - `In progress`
+- `Next` ⭐ **New in v3.0**
 - `Done`
 
 **Type field options:**
@@ -108,7 +128,14 @@ Your Airtable table should have these fields:
 - `Video`
 - `Article`
 
-The extension will automatically populate Status and Type based on the URL, and you can add any tags you want to the Tags field.
+#### 🆕 Setting up the Done date field:
+1. In your Airtable base, click "+" to add a new field
+2. **Field Name**: `Done date` (exact spelling with space)
+3. **Field Type**: Select "Date"
+4. **Format**: Choose "YYYY-MM-DD" (recommended) or "MM/DD/YYYY"
+5. **Include Time**: Leave unchecked
+
+The extension automatically populates Status, Type, and Done date based on your actions.
 
 ## 🧪 Testing
 
@@ -201,7 +228,13 @@ Saves a new page with smart deduplication and type detection.
 ```json
 {
   "duplicate": true,
-  "existingId": "recXXXXXXXXXXXXXX"
+  "existingId": "recXXXXXXXXXXXXXX",
+  "existingData": {
+    "title": "Amazing Twitter Thread",
+    "tags": ["programming", "ai"],
+    "status": "To do",
+    "doneDate": null
+  }
 }
 ```
 
@@ -217,22 +250,130 @@ Returns all unique tags from your Airtable for autocomplete.
 }
 ```
 
+### 🆕 Status Management Endpoints (v3.0)
+
+### POST `/api/mark-done`
+
+Marks an item as done with automatic date stamping.
+
+**Request:**
+```json
+{
+  "recordId": "recXXXXXXXXXXXXXX"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "recordId": "recXXXXXXXXXXXXXX",
+  "doneDate": "2025-01-19"
+}
+```
+
+### POST `/api/mark-next`
+
+Marks an item as next and clears any completion date.
+
+**Request:**
+```json
+{
+  "recordId": "recXXXXXXXXXXXXXX"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "recordId": "recXXXXXXXXXXXXXX",
+  "status": "Next"
+}
+```
+
+### POST `/api/mark-todo`
+
+Reverts an item to "To do" status and clears completion date.
+
+**Request:**
+```json
+{
+  "recordId": "recXXXXXXXXXXXXXX"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "recordId": "recXXXXXXXXXXXXXX",
+  "status": "To do"
+}
+```
+
 ## 🎯 User Experience
 
 ### Extension Workflow
 
 1. **🔵 Open Extension** → Page auto-saves instantly
-2. **✅ See "Saved" Status** → Green button confirms save
-3. **📝 Edit Fields** → Button changes to "Update Changes" 
-4. **🔄 Click Update** → Changes saved, returns to "Saved"
+2. **📊 See Status Display** → Main button shows current status
+3. **📝 Edit Fields** → Button changes to "Update" 
+4. **🔄 Click Update** → Changes saved, returns to status display
+5. **⚡ Manage Status** → Use action buttons to change status
 
-### Button States
+### 🎨 Interface Layout
 
-| State | Color | Icon | Description |
-|-------|-------|------|-------------|
-| `Saving...` | Gray | ⏳ | Initial auto-save in progress |
-| `✅ Saved` | Green | ✅ | No changes, record saved |
-| `📝 Update Changes` | Orange | 📝 | Changes detected, ready to update |
+```
+┌─────────────────────────────────────────────────┐
+│ Title: [Amazing Article Title................] │
+│ URL:   [https://example.com/article..........] │
+│ Tags:  [programming, web, tutorial...........] │
+│                                                 │
+│ [    Done today    ] [✓] [▶️] [🗑️]           │
+│  Status Display     Done Next Delete            │
+└─────────────────────────────────────────────────┘
+```
+
+### Button States & Colors
+
+#### Main Button (Status Display)
+| State | Color | Description |
+|-------|-------|-------------|
+| `Save to Airtable` | Blue | Ready to save new item |
+| `Saving...` | Gray | Auto-save in progress |
+| `Update` | Purple | Changes detected, ready to update |
+| `Done today` | Gray | Completed today (non-clickable) |
+| `Done on Jan 15th, 2025` | Gray | Completed on specific date |
+| `Next` | Gray | Marked as next priority |
+| `To do` | Gray | Standard to-do status |
+
+#### Action Buttons (Always Available When Saved)
+| Button | Inactive State | Active State | Action |
+|--------|---------------|--------------|---------|
+| **✓ Done** | White bg, Green border | Light green bg, Dark green text | Toggle Done ↔ To do |
+| **▶️ Next** | White bg, Blue border | Light blue bg, Dark blue text | Toggle Next ↔ To do |
+| **🗑️ Delete** | White bg, Red border | - | Delete from Airtable |
+
+### 🔄 Status Workflow
+
+```
+To do ←→ Next
+  ↑       ↑
+  └─ Done ┘
+```
+
+- **Mark as Done**: Sets status to "Done" + today's date
+- **Mark as Next**: Sets status to "Next" + clears date  
+- **Undo (click active button)**: Reverts to "To do" + clears date
+- **Toggle behavior**: Active buttons are clickable to undo their status
+
+### 📅 Date Display Examples
+
+- **Today**: "Done today"
+- **Yesterday**: "Done yesterday"  
+- **This year**: "Done on March 15th, 2025"
+- **Past years**: "Done on December 23rd, 2023"
 
 ## 🤝 Contributing
 
