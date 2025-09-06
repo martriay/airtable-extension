@@ -51,47 +51,66 @@ The Save to Airtable backend API supports iOS integration through **iOS Shortcut
 2. Tap the **+** button to create a new shortcut
 3. Name it "Save to Airtable"
 
-### Step 2: Add Actions
+### Step 2: Add Actions (in exact order)
 
-#### Action 1: Get Current URL
+#### Action 1: Get URL
 - Add action: **"Get URLs from Input"**
-- Set input to: **"Shortcut Input"**
-- If no input, get from: **"Safari Web Page"**
+- Set "Get URLs from" to: **"Shortcut Input"**
+- Set "If There's No Input" to: **"Safari Web Page"**
 
 #### Action 2: Get Page Title
 - Add action: **"Get Name of URL"**
-- Input: Use output from previous action
+- Input: Use output from Action 1 (automatic)
 
-#### Action 3: Ask for Tags (Optional)
+#### Action 3: Ask for Tags
 - Add action: **"Ask for Text"**
-- Prompt: "Enter tags (comma-separated):"
+- Prompt: **"Tags (comma-separated):"**
 - Default Answer: Leave empty
-- Allow Multiple Lines: No
 
-#### Action 4: Format Request Body
-- Add action: **"Get Text"**
-- Text content:
-```json
-{
-  "url": "[URL from Step 1]",
-  "title": "[Name from Step 2]",
-  "tags": ["[Split tags from Step 3]"],
-  "source": "iOS Shortcut"
-}
-```
+#### Action 4: Split Tags into Array
+- Add action: **"Split Text"**
+- Text to Split: Output from Action 3
+- Separator: **"Custom"**
+- Custom Separator: **","** (just a comma)
 
 #### Action 5: Make API Request
 - Add action: **"Get Contents of URL"**
 - URL: `https://airtable-extension-martriays-projects.vercel.app/api/save`
-- Method: **POST**
-- Headers:
-  - `Content-Type`: `application/json`
-- Request Body: Output from Step 4
+- Method: **"POST"**
+
+**Option A: If you see "Authentication" section:**
+- **Authentication**: **"Basic Auth"**
+  - Username: Your `BASIC_AUTH_USERNAME`
+  - Password: Your `BASIC_AUTH_PASSWORD`
+
+**Option B: If you DON'T see "Authentication" section (use custom header):**
+- Headers → Add Header:
+  - Key: `Authorization`
+  - Value: `Basic [BASE64_ENCODED_CREDENTIALS]`
+  
+  To get your BASE64_ENCODED_CREDENTIALS:
+  1. Go to https://www.base64encode.org/
+  2. Enter: `your_username:your_password` (replace with your actual credentials)
+  3. Click "Encode" and copy the result
+  4. Use that encoded string in the Authorization header
+
+- Headers → Add Header:
+  - Key: `Content-Type`
+  - Value: `application/json`
+- Request Body: **"Text"**
+- In the text field, type:
+```
+{"url":"URL_PLACEHOLDER","title":"TITLE_PLACEHOLDER","tags":TAGS_PLACEHOLDER,"source":"iOS Shortcut"}
+```
+- Replace placeholders by tapping them and selecting:
+  - `URL_PLACEHOLDER` → "URLs from Input" (from Action 1)
+  - `TITLE_PLACEHOLDER` → "Name of URL" (from Action 2)
+  - `TAGS_PLACEHOLDER` → "Split Text" (from Action 4)
 
 #### Action 6: Show Result
 - Add action: **"Show Notification"**
-- Title: "Saved to Airtable"
-- Body: "Page saved successfully!"
+- Title: **"Saved!"**
+- Body: **"Link saved to Airtable"**
 
 ### Step 3: Configure Sharing
 
@@ -156,6 +175,16 @@ The shortcut can be triggered from:
 
 ### Common Issues
 
+**"Bad Request" / Server Error 400**
+- Most common cause: Tags not formatted as array
+- Solution: Ensure you added the "Split Text" action (Step 4)
+- Debug: Create a test shortcut that shows the request body instead of sending it
+
+**"Unauthorized" / Server Error 401**
+- Cause: Missing or incorrect Basic Auth credentials
+- Solution: Verify username/password in "Get Contents of URL" action
+- Ensure credentials match your `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` environment variables
+
 **"Network Error"**
 - Check your internet connection
 - Verify the API URL is correct
@@ -164,15 +193,46 @@ The shortcut can be triggered from:
 **"Invalid JSON"**
 - Make sure the request body is properly formatted
 - Check for special characters in title/tags that might break JSON
+- Ensure placeholders are replaced with actual variables
 
 **"Tags not saving"**
-- Ensure tags are properly comma-separated
-- Check that tag names match your Airtable field configuration
+- Ensure tags are properly comma-separated in input
+- Check that the "Split Text" action is working correctly
+- Verify tag names match your Airtable field configuration
 
 **"Duplicate detection not working"**
 - The API uses URL canonicalization
 - URLs with tracking parameters are treated as the same page
 - YouTube URLs ignore playlist/timestamp parameters
+
+### Debug Your Shortcut
+
+If the shortcut fails, create a debug version:
+
+1. **Duplicate your shortcut**
+2. **Remove the "Get Contents of URL" action**
+3. **Add "Show Result" action instead**
+4. **Set it to display the request body text**
+5. **Run it to see exactly what JSON is being sent**
+
+The JSON should look like:
+```json
+{
+  "url": "https://example.com",
+  "title": "Page Title",
+  "tags": ["tag1", "tag2"],
+  "source": "iOS Shortcut"
+}
+```
+
+### Check Vercel Logs
+
+To see detailed error messages:
+1. Go to [vercel.com](https://vercel.com)
+2. Find your project: `airtable-extension-martriays-projects`
+3. Go to **Functions** tab
+4. Click `/api/save` function
+5. Check **Logs** section for errors
 
 ### Testing the API
 
@@ -189,11 +249,15 @@ You can test the API directly using the **"Get Contents of URL"** action in Shor
 
 ## Environment Variables
 
-The iOS Shortcut uses the same backend API, so no additional environment variables are needed. The backend already has:
+The iOS Shortcut uses the same backend API with Basic Auth security. The backend requires:
 
 - `AIRTABLE_PAT`: Your Airtable Personal Access Token
 - `AIRTABLE_BASE_ID`: Your Airtable Base ID
 - `AIRTABLE_TABLE`: Your table name (defaults to "Units")
+- `BASIC_AUTH_USERNAME`: Username for API authentication
+- `BASIC_AUTH_PASSWORD`: Password for API authentication
+
+**Important**: You'll need to configure the same Basic Auth credentials in your iOS Shortcut's "Get Contents of URL" action (Step 5 above).
 
 ## Limitations
 

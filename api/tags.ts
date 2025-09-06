@@ -1,10 +1,11 @@
 import { getAllRecords } from './src/airtable';
+import { validateBasicAuth, sendUnauthorizedResponse } from './src/auth';
 
 export default async function handler(req: any, res: any) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -12,6 +13,12 @@ export default async function handler(req: any, res: any) {
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Validate Basic Auth
+  const authResult = validateBasicAuth(req.headers.authorization);
+  if (!authResult.authenticated) {
+    return sendUnauthorizedResponse(res, authResult.error);
   }
 
   try {

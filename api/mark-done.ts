@@ -1,7 +1,9 @@
 import { markAsDone } from './src/airtable';
+import { validateBasicAuth, sendUnauthorizedResponse } from './src/auth';
 
 interface MarkDoneRequest {
   recordId: string;
+  doneDate?: string; // Optional user's local date in YYYY-MM-DD format
 }
 
 interface MarkDoneResponse {
@@ -16,7 +18,7 @@ export default async function handler(req: any, res: any) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Type', 'application/json');
 
@@ -26,6 +28,12 @@ export default async function handler(req: any, res: any) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Validate Basic Auth
+  const authResult = validateBasicAuth(req.headers.authorization);
+  if (!authResult.authenticated) {
+    return sendUnauthorizedResponse(res, authResult.error);
   }
 
   try {
@@ -38,7 +46,7 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const updatedRecord = await markAsDone(body.recordId);
+    const updatedRecord = await markAsDone(body.recordId, body.doneDate);
     
     const response: MarkDoneResponse = {
       success: true,

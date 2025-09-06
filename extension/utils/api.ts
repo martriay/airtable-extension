@@ -1,16 +1,40 @@
 const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
 
+// Basic Auth credentials - these should be set as environment variables during build
+const BASIC_AUTH_USERNAME = process.env.BASIC_AUTH_USERNAME || '';
+const BASIC_AUTH_PASSWORD = process.env.BASIC_AUTH_PASSWORD || '';
+
+/**
+ * Creates Basic Auth header for API requests
+ */
+const getAuthHeaders = (): Record<string, string> => {
+  if (!BASIC_AUTH_USERNAME || !BASIC_AUTH_PASSWORD) {
+    console.warn('Basic Auth credentials not configured');
+    return {};
+  }
+  const credentials = btoa(`${BASIC_AUTH_USERNAME}:${BASIC_AUTH_PASSWORD}`);
+  return {
+    Authorization: `Basic ${credentials}`,
+  };
+};
+
 export interface SaveRequest {
   url: string;
   title: string;
   tags: string[];
   source: 'Extension' | 'iOS Shortcut';
+  forceUpdate?: boolean;
+  recordId?: string | null;
 }
 
 export interface SaveResponse {
   duplicate: boolean;
   id?: string;
   existingId?: string;
+  existingData?: {
+    title: string;
+    tags: string[];
+  };
   error?: string;
 }
 
@@ -21,6 +45,7 @@ export interface CheckRequest {
 export interface CheckResponse {
   exists: boolean;
   recordId?: string;
+  canonicalUrl?: string;
   existingData?: {
     title: string;
     tags: string[];
@@ -52,6 +77,7 @@ export const postSave = async (data: SaveRequest): Promise<SaveResponse> => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(data),
   });
@@ -108,7 +134,11 @@ export const getTags = async (): Promise<string[]> => {
   }
 
   console.log('📡 Fetching fresh tags from API (slow path)');
-  const response = await fetch(`${BACKEND_URL}/api/tags`);
+  const response = await fetch(`${BACKEND_URL}/api/tags`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
 
   if (!response.ok) {
     // If API fails, return cached tags if available
@@ -134,6 +164,7 @@ export const checkUrl = async (url: string): Promise<CheckResponse> => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ url }),
   });
@@ -180,6 +211,7 @@ export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => 
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ recordId }),
   });
@@ -193,12 +225,22 @@ export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => 
 };
 
 export const markAsDone = async (recordId: string): Promise<MarkDoneResponse> => {
+  // Generate user's local date in YYYY-MM-DD format
+  const today = new Date();
+  const userLocalDate = today.getFullYear()
+    + '-' + String(today.getMonth() + 1).padStart(2, '0')
+    + '-' + String(today.getDate()).padStart(2, '0');
+
   const response = await fetch(`${BACKEND_URL}/api/mark-done`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
-    body: JSON.stringify({ recordId }),
+    body: JSON.stringify({
+      recordId,
+      doneDate: userLocalDate,
+    }),
   });
 
   if (!response.ok) {
@@ -214,6 +256,7 @@ export const markAsNext = async (recordId: string): Promise<MarkNextResponse> =>
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ recordId }),
   });
@@ -231,6 +274,7 @@ export const markAsTodo = async (recordId: string): Promise<MarkTodoResponse> =>
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ recordId }),
   });

@@ -1,5 +1,6 @@
 import { canonicalize } from './src/canonical';
 import { findByUrl } from './src/airtable';
+import { validateBasicAuth, sendUnauthorizedResponse } from './src/auth';
 
 interface CheckRequest {
   url: string;
@@ -8,6 +9,7 @@ interface CheckRequest {
 interface CheckResponse {
   exists: boolean;
   recordId?: string;
+  canonicalUrl?: string;
   existingData?: {
     title: string;
     tags: string[];
@@ -22,7 +24,7 @@ export default async function handler(req: any, res: any) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Type', 'application/json');
 
@@ -32,6 +34,12 @@ export default async function handler(req: any, res: any) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Validate Basic Auth
+  const authResult = validateBasicAuth(req.headers.authorization);
+  if (!authResult.authenticated) {
+    return sendUnauthorizedResponse(res, authResult.error);
   }
 
   try {
@@ -53,6 +61,7 @@ export default async function handler(req: any, res: any) {
       const response: CheckResponse = {
         exists: true,
         recordId: existingRecord.id,
+        canonicalUrl: canonical,
         existingData: {
           title: existingRecord.fields.Name,
           tags: existingRecord.fields.Tags || [],
@@ -65,7 +74,8 @@ export default async function handler(req: any, res: any) {
 
     // URL doesn't exist
     const response: CheckResponse = {
-      exists: false
+      exists: false,
+      canonicalUrl: canonical
     };
     return res.status(200).json(response);
 

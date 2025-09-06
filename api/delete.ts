@@ -1,4 +1,5 @@
 import { deleteRecord } from './src/airtable';
+import { validateBasicAuth, sendUnauthorizedResponse } from './src/auth';
 
 interface DeleteRequest {
   recordId: string;
@@ -14,7 +15,7 @@ export default async function handler(req: any, res: any) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -26,6 +27,12 @@ export default async function handler(req: any, res: any) {
       error: 'Method not allowed'
     };
     return res.status(405).json(response);
+  }
+
+  // Validate Basic Auth
+  const authResult = validateBasicAuth(req.headers.authorization);
+  if (!authResult.authenticated) {
+    return sendUnauthorizedResponse(res, authResult.error);
   }
 
   try {

@@ -61,6 +61,8 @@ Set these variables in your Vercel dashboard or `.env` file:
 AIRTABLE_PAT=your_personal_access_token    # Airtable Personal Access Token
 AIRTABLE_BASE_ID=your_base_id              # Your Airtable base ID
 AIRTABLE_TABLE=Units                       # Table name (default: Units)
+BASIC_AUTH_USERNAME=your_username          # Basic Auth username for API security
+BASIC_AUTH_PASSWORD=your_secure_password   # Basic Auth password for API security
 ```
 
 ### 🎯 Getting Airtable Credentials
@@ -68,6 +70,13 @@ AIRTABLE_TABLE=Units                       # Table name (default: Units)
 1. **Personal Access Token**: Go to [Airtable Developer Hub](https://airtable.com/create/tokens) → Create new token
 2. **Base ID**: Found in your Airtable base URL: `https://airtable.com/{BASE_ID}/...`
 3. **Table Name**: Usually "Units" or your preferred table name
+
+### 🔐 Security Setup
+
+4. **Basic Auth Credentials**: Choose secure username/password for API authentication
+   - Used by Chrome extension and iOS Shortcuts
+   - Protects all API endpoints from unauthorized access
+   - Set strong password (recommended: 16+ characters with mixed case, numbers, symbols)
 
 ## 🚀 Development
 
@@ -173,6 +182,8 @@ vercel --prod
 vercel env add AIRTABLE_PAT
 vercel env add AIRTABLE_BASE_ID
 vercel env add AIRTABLE_TABLE
+vercel env add BASIC_AUTH_USERNAME
+vercel env add BASIC_AUTH_PASSWORD
 ```
 
 ### Chrome Extension

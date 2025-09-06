@@ -1,5 +1,6 @@
 import { canonicalize } from '../src/canonical';
 import { findByHash, create } from '../src/airtable';
+import { validateBasicAuth, createUnauthorizedResponse } from '../../api/src/auth';
 
 interface SaveRequest {
   url: string;
@@ -20,7 +21,7 @@ export default async function handler(request: Request): Promise<Response> {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Cache-Control': 'no-store',
     'Content-Type': 'application/json'
   };
@@ -34,6 +35,12 @@ export default async function handler(request: Request): Promise<Response> {
       JSON.stringify({ error: 'Method not allowed' }),
       { status: 405, headers }
     );
+  }
+
+  // Validate Basic Auth
+  const authResult = validateBasicAuth(request.headers.get('authorization'));
+  if (!authResult.authenticated) {
+    return createUnauthorizedResponse(authResult.error);
   }
 
   try {

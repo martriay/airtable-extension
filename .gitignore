@@ -93,3 +93,4 @@ jspm_packages/
 
 # Vitest
 .vitest/
+.env*.local

@@ -7,6 +7,7 @@ import {
   markAsDone,
   markAsNext,
   markAsTodo,
+  postSave,
 } from './utils/api';
 
 // Format date in a more colloquial way
@@ -136,7 +137,7 @@ function cleanTitle(title: string): string {
   return cleanedTitle;
 }
 
-const BACKEND_URL = 'https://airtable-extension-martriays-projects.vercel.app';
+
 
 function Popup() {
   const [url, setUrl] = useState('');
@@ -186,14 +187,16 @@ function Popup() {
               console.log('🎯 URL already exists, populating form with existing data - NO SAVE NEEDED');
               const existingTitle = urlCheck.existingData.title;
               const existingTags = urlCheck.existingData.tags.join(', ');
+              const canonicalUrl = urlCheck.canonicalUrl || currentUrl;
 
+              setUrl(canonicalUrl); // Use canonical URL instead of raw URL
               setTitle(existingTitle);
               setTags(existingTags);
               setSavedRecordId(urlCheck.recordId || null);
               setCurrentStatus(urlCheck.existingData.status);
               setDoneDate(urlCheck.existingData.doneDate);
               setOriginalData({
-                url: currentUrl,
+                url: canonicalUrl, // Store canonical URL in original data
                 title: existingTitle,
                 tags: existingTags,
               });
@@ -205,9 +208,11 @@ function Popup() {
             } else {
               // New URL - auto-save with cleaned title
               console.log('🆕 New URL detected, auto-saving');
+              const canonicalUrl = urlCheck.canonicalUrl || currentUrl;
+              setUrl(canonicalUrl); // Use canonical URL even for new URLs
               setIsLoading(true); // Only show loading for new URLs that need saving
-              setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
-              await performSave(currentUrl, currentTitle, []);
+              setOriginalData({ url: canonicalUrl, title: currentTitle, tags: '' });
+              await performSave(canonicalUrl, currentTitle, []);
               setIsInitializing(false); // Done initializing
             }
           } catch (error) {
@@ -321,29 +326,17 @@ function Popup() {
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: saveUrl,
-          title: saveTitle,
-          tags: saveTags,
-          source: 'Extension',
-          forceUpdate,
-          recordId: savedRecordId,
-        }),
+      const result = await postSave({
+        url: saveUrl,
+        title: saveTitle,
+        tags: saveTags,
+        source: 'Extension',
+        forceUpdate,
+        recordId: savedRecordId,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
       if (result.duplicate) {
-        setSavedRecordId(result.existingId);
+        setSavedRecordId(result.existingId || null);
 
         // If we have existing data, populate the form
         if (result.existingData && !forceUpdate) {
@@ -360,7 +353,7 @@ function Popup() {
           setOriginalData({ url: saveUrl, title: saveTitle, tags: saveTags.join(', ') });
         }
       } else {
-        setSavedRecordId(result.id);
+        setSavedRecordId(result.id || null);
         setHasUnsavedChanges(false);
         setOriginalData({ url: saveUrl, title: saveTitle, tags: saveTags.join(', ') });
       }
@@ -428,7 +421,12 @@ function Popup() {
         const result = await markAsDone(savedRecordId);
         console.log('✅ Successfully marked item as done');
         setCurrentStatus('Done');
-        setDoneDate(result.doneDate || new Date().toISOString().split('T')[0]);
+        // Use user's local date for consistency with what was sent to the API
+        const today = new Date();
+        const userLocalDate = today.getFullYear() + '-' + 
+          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(today.getDate()).padStart(2, '0');
+        setDoneDate(result.doneDate || userLocalDate);
       }
     } catch (error) {
       console.error('Mark as done/undo failed:', error);

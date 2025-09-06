@@ -52,6 +52,15 @@ Env:
   AIRTABLE_PAT
   AIRTABLE_BASE_ID  
   AIRTABLE_TABLE=Units
+  BASIC_AUTH_USERNAME
+  BASIC_AUTH_PASSWORD
+
+Security: HTTP Basic Authentication
+• All API endpoints require Basic Auth credentials
+• Username/password sent via Authorization header: Basic base64(username:password)
+• Chrome extension includes credentials in all API requests
+• iOS Shortcuts use built-in Basic Auth action
+• 401 Unauthorized returned for missing/invalid credentials
 
 POST /api/save  body:
 {
@@ -71,7 +80,7 @@ POST /api/check body:
 {
   "url": "<raw url>"
 }
-Returns: {"exists": boolean, "recordId"?: string, "existingData"?: {"title": string, "tags": string[], "status"?: string, "doneDate"?: string}, "error"?: string, "details"?: string}
+Returns: {"exists": boolean, "recordId"?: string, "canonicalUrl"?: string, "existingData"?: {"title": string, "tags": string[], "status"?: string, "doneDate"?: string}, "error"?: string, "details"?: string}
 
 DELETE /api/delete body:
 {
@@ -81,7 +90,8 @@ Returns: {"success": boolean, "error"?: string, "details"?: string}
 
 POST /api/mark-done body:
 {
-  "recordId": "recXXXXXX"
+  "recordId": "recXXXXXX",
+  "doneDate": "YYYY-MM-DD" (optional, user's local date)
 }
 Returns: {"success": boolean, "recordId"?: string, "doneDate"?: string, "error"?: string, "details"?: string}
 
@@ -205,7 +215,7 @@ Behaviour:
 • Update workflow: forceUpdate=true when hasUnsavedChanges && savedRecordId
 • Delete button: visible when savedRecordId exists, immediate action (no confirmation dialog)
 • Status management workflow:
-    – Mark as Done: sets Status="Done", Done date=today (YYYY-MM-DD)
+    – Mark as Done: sets Status="Done", Done date=today in user's timezone (YYYY-MM-DD)
     – Mark as Next: sets Status="Next", clears Done date
     – Undo (from active buttons): sets Status="To do", clears Done date
     – Status buttons are toggles: clicking active status reverts to "To do"
@@ -291,6 +301,7 @@ Deployment:
 ✔ New tag creation → any new tags automatically created in Airtable via typecast
 ✔ Network error → button stays in loading state
 ✔ URL canonicalization → tracking + YouTube + Twitter params removed, normalized
+✔ Canonical URL display → extension shows cleaned URL instead of raw browser URL
 ✔ Status field → "To do" automatically set (when field exists)
 ✔ YouTube deduplication → URLs with playlists/timestamps treated as same video
 ✔ Form population → existing entries auto-fill for easy editing
@@ -331,3 +342,5 @@ Deployment:
 • Visual button states: "turned on" statuses show colored backgrounds but remain clickable
 • Color harmony: blue primary, purple update, green done, blue next, red delete
 • Clean status text: "Done today", "Next", "To do" (no prefixes for common statuses)
+• User timezone support: Done dates use user's local timezone instead of server timezone
+• Cute favicon: Cloud icon with transparent background, checkmark, and sparkles

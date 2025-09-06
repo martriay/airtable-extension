@@ -406,8 +406,9 @@ export async function markAsNext(recordId: string): Promise<AirtableRecord> {
   throw new Error(`Failed to mark as next. Last error: ${finalErrorResponse}`);
 }
 
-export async function markAsDone(recordId: string): Promise<AirtableRecord> {
-  const todayDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+export async function markAsDone(recordId: string, userDate?: string): Promise<AirtableRecord> {
+  // Use provided user date or fallback to server date
+  const todayDate = userDate || new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
   
   // Try different approaches in order of preference
   const statusOptions = ['Done', 'done', 'Complete', 'Completed', 'Finished'];
