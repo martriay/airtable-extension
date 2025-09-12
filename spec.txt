@@ -122,7 +122,7 @@ Process (/api/save):
 3. Dedup by URL (findByUrl function)
    GET Units?filterByFormula={Link}="canonical_url"
    if exists AND !forceUpdate → return 200 {duplicate:true,existingId,existingData:{title,tags}}
-   if exists AND forceUpdate → update record, return 200 {duplicate:true,existingId}
+   if exists AND forceUpdate → update record (preserving existing Status), return 200 {duplicate:true,existingId}
 4. Process tags (processTagsForCreation function)
    • clean tags: trim whitespace, remove empty strings
    • length limit: max 100 characters per tag
@@ -314,6 +314,7 @@ Deployment:
 ✔ Timezone-safe dates → Local date parsing prevents day-shifting issues
 ✔ Status display modes → Clean text for common statuses (Done, Next, To do)
 ✔ Action button feedback → Visual "turned on" state with colored backgrounds
+✔ Status preservation → Updating existing entries (tags, title) preserves current status
 
 ──────────────────────────────────
 8. Current Implementation Notes
@@ -332,6 +333,7 @@ Deployment:
 • URL-based deduplication instead of hash-based
 • Enhanced YouTube URL canonicalization (playlists, timestamps)
 • Two-phase save: populate first, update on demand with forceUpdate flag
+• Status preservation: Updates to existing records preserve current Status (don't reset to "To do")
 • Delete functionality with immediate action (no confirmation dialog)
 • Enter key shortcuts for quick updates
 • Tag creation via typecast parameter - new multiple-select options auto-created

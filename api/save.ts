@@ -67,7 +67,7 @@ export default async function handler(req: any, res: any) {
           Name: body.title,
           Link: canonical,
           Tags: body.tags,
-          Status: 'To do',
+          // Don't override Status when updating - preserve existing status
           Type: contentType
         });
         
