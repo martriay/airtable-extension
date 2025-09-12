@@ -13,7 +13,7 @@ import {
 // Format date in a more colloquial way
 function formatColloquialDate(dateString: string): string {
   if (!dateString) return '';
-  
+
   try {
     // Parse the date string as local date to avoid timezone issues
     const [dateYear, dateMonth, dateDay] = dateString.split('-').map(Number);
@@ -23,35 +23,35 @@ function formatColloquialDate(dateString: string): string {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
+
     // Check if it's today
     if (itemDate.getTime() === today.getTime()) {
       return 'Done today';
     }
-    
+
     // Check if it's yesterday
     if (itemDate.getTime() === yesterday.getTime()) {
       return 'Done yesterday';
     }
-    
+
     // Format as "Done on Month Dth, YYYY"
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                   'July', 'August', 'September', 'October', 'November', 'December'];
+      'July', 'August', 'September', 'October', 'November', 'December'];
     const month = months[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
-    
+
     // Add ordinal suffix
-    const getOrdinalSuffix = (day: number) => {
-      if (day > 3 && day < 21) return 'th';
-      switch (day % 10) {
+    const getOrdinalSuffix = (dayNum: number) => {
+      if (dayNum > 3 && dayNum < 21) return 'th';
+      switch (dayNum % 10) {
         case 1: return 'st';
         case 2: return 'nd';
         case 3: return 'rd';
         default: return 'th';
       }
     };
-    
+
     return `Done on ${month} ${day}${getOrdinalSuffix(day)}, ${year}`;
   } catch (error) {
     // Fallback to original format if parsing fails
@@ -137,15 +137,13 @@ function cleanTitle(title: string): string {
   return cleanedTitle;
 }
 
-
-
 function Popup() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
   const [tagList, setTagList] = useState<string[]>([]); // New: array of individual tags
   const [currentTagInput, setCurrentTagInput] = useState(''); // New: current input for adding tags
-  const [selectedTagIndex, setSelectedTagIndex] = useState(-1); // New: index of selected tag for keyboard navigation
+  const [selectedTagIndex, setSelectedTagIndex] = useState(-1); // Selected tag for keyboard nav
   const [isLoading, setIsLoading] = useState(false); // Start optimistic
   const [isInitializing, setIsInitializing] = useState(true); // Track URL checking
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -166,7 +164,7 @@ function Popup() {
   const getTagColor = (tag: string): string => {
     const colors = [
       '#A5B4FC', // Light Blue/Purple (like "ai" tags)
-      '#FDE68A', // Light Yellow (like "productivity" tags)  
+      '#FDE68A', // Light Yellow (like "productivity" tags)
       '#A7F3D0', // Light Green (like "Done" status)
       '#FECACA', // Light Red/Pink (like "news" tags)
       '#E0E7FF', // Very Light Blue (like "Article" type)
@@ -182,15 +180,15 @@ function Popup() {
       '#FEF3C7', // Light Amber
       '#E879F9', // Light Magenta
     ];
-    
+
     try {
       if (!tag || typeof tag !== 'string') {
         return colors[0]; // Default to first color
       }
-      
+
       let hash = 0;
-      for (let i = 0; i < tag.length; i++) {
-        hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+      for (let i = 0; i < tag.length; i += 1) {
+        hash = tag.charCodeAt(i) + ((hash * 32) - hash);
       }
       return colors[Math.abs(hash) % colors.length];
     } catch (error) {
@@ -209,7 +207,7 @@ function Popup() {
   // Helper function to add a tag
   const addTag = (tagToAdd: string) => {
     const trimmedTag = tagToAdd.trim();
-    if (trimmedTag && !tagList.some(tag => tag.toLowerCase() === trimmedTag.toLowerCase())) {
+    if (trimmedTag && !tagList.some((tag) => tag.toLowerCase() === trimmedTag.toLowerCase())) {
       const newTagList = [...tagList, trimmedTag];
       setTagList(newTagList);
       const newTagsString = syncTagsToString(newTagList);
@@ -223,7 +221,7 @@ function Popup() {
 
   // Helper function to remove a tag
   const removeTag = (tagToRemove: string) => {
-    const newTagList = tagList.filter(tag => tag !== tagToRemove);
+    const newTagList = tagList.filter((tag) => tag !== tagToRemove);
     setTagList(newTagList);
     const newTagsString = syncTagsToString(newTagList);
     checkForChanges(url, title, newTagsString);
@@ -247,7 +245,7 @@ function Popup() {
   // Sync tagList when tags string changes (for initialization)
   useEffect(() => {
     try {
-      const tagsFromString = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      const tagsFromString = tags.split(',').map((tag) => tag.trim()).filter((tag) => tag);
       if (JSON.stringify(tagsFromString) !== JSON.stringify(tagList)) {
         setTagList(tagsFromString);
       }
@@ -364,10 +362,8 @@ function Popup() {
     // Filter suggestions based on current input and exclude already added tags
     const trimmedValue = value.trim().toLowerCase();
     if (trimmedValue.length > 0) {
-      const suggestions = availableTags.filter((tag) => 
-        tag.toLowerCase().includes(trimmedValue) &&
-        !tagList.some(existingTag => existingTag.toLowerCase() === tag.toLowerCase())
-      );
+      const suggestions = availableTags.filter((tag) => tag.toLowerCase().includes(trimmedValue)
+        && !tagList.some((existingTag) => existingTag.toLowerCase() === tag.toLowerCase()));
       setFilteredSuggestions(suggestions);
       setShowSuggestions(suggestions.length > 0);
       setActiveSuggestion(-1);
@@ -408,7 +404,7 @@ function Popup() {
           setSelectedTagIndex(selectedTagIndex - 1);
         }
         return;
-      } else if (e.key === 'ArrowRight') {
+      } if (e.key === 'ArrowRight') {
         e.preventDefault();
         if (selectedTagIndex >= 0 && selectedTagIndex < tagList.length - 1) {
           setSelectedTagIndex(selectedTagIndex + 1);
@@ -417,7 +413,7 @@ function Popup() {
           setSelectedTagIndex(-1);
         }
         return;
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      } if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (selectedTagIndex >= 0) {
           // Delete selected tag
@@ -564,9 +560,9 @@ function Popup() {
         setCurrentStatus('Done');
         // Use user's local date for consistency with what was sent to the API
         const today = new Date();
-        const userLocalDate = today.getFullYear() + '-' + 
-          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-          String(today.getDate()).padStart(2, '0');
+        const userLocalDate = `${today.getFullYear()}-${
+          String(today.getMonth() + 1).padStart(2, '0')}-${
+          String(today.getDate()).padStart(2, '0')}`;
         setDoneDate(result.doneDate || userLocalDate);
       }
     } catch (error) {
@@ -700,7 +696,7 @@ function Popup() {
         }}>
           Tags:
         </label>
-        
+
         {/* Combined input with tags inside */}
         <div
           style={{
@@ -774,7 +770,7 @@ function Popup() {
               </button>
             </div>
           ))}
-          
+
           {/* Input for adding new tags */}
           <input
             ref={tagsInputRef}
@@ -789,7 +785,7 @@ function Popup() {
               // Delay hiding suggestions to allow clicking on them
               setTimeout(() => setShowSuggestions(false), 200);
             }}
-            placeholder={tagList.length === 0 ? "Add a tag (press Enter or comma to add)" : ""}
+            placeholder={tagList.length === 0 ? 'Add a tag (press Enter or comma to add)' : ''}
             style={{
               border: 'none',
               outline: 'none',
@@ -840,8 +836,6 @@ function Popup() {
         )}
       </div>
 
-
-
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button
           onClick={(!savedRecordId || hasUnsavedChanges) ? handleSave : undefined}
@@ -854,13 +848,13 @@ function Popup() {
                             : isLoading ? '#9ca3af'
                               : (!hasUnsavedChanges && savedRecordId) ? '#f3f4f6'
                                 : hasUnsavedChanges ? '#7c3aed' : '#2563eb',
-                                  color: isInitializing ? '#9ca3af' 
-                                        : isLoading ? 'white'
-                                        : (!hasUnsavedChanges && savedRecordId) ? '#6b7280'
+                                  color: isInitializing ? '#9ca3af'
+                                    : isLoading ? 'white'
+                                      : (!hasUnsavedChanges && savedRecordId) ? '#6b7280'
                                         : 'white',
-                                  border: isInitializing ? '2px solid #e5e7eb' 
-                                         : (!hasUnsavedChanges && savedRecordId) ? '1px solid #d1d5db'
-                                         : 'none',
+                                  border: isInitializing ? '2px solid #e5e7eb'
+                                    : (!hasUnsavedChanges && savedRecordId) ? '1px solid #d1d5db'
+                                      : 'none',
                                   borderRadius: '6px',
                                   fontSize: '14px',
                                   fontWeight: '500',
@@ -875,12 +869,12 @@ function Popup() {
                     >
                       {isInitializing ? '⚡'
                         : isLoading ? 'Saving...'
-                          : (!hasUnsavedChanges && savedRecordId) ? 
-                            (currentStatus === 'Done' && doneDate ? 
-                              formatColloquialDate(doneDate) :
-                              currentStatus === 'Next' ? 'Next' :
-                              currentStatus === 'To do' ? 'To do' :
-                              currentStatus ? `Status: ${currentStatus}` : 'Saved')
+                          : (!hasUnsavedChanges && savedRecordId)
+                            ? (currentStatus === 'Done' && doneDate
+                              ? formatColloquialDate(doneDate)
+                              : currentStatus === 'Next' ? 'Next'
+                                : currentStatus === 'To do' ? 'To do'
+                                  : currentStatus ? `Status: ${currentStatus}` : 'Saved')
                             : hasUnsavedChanges ? 'Update' : 'Save'}
         </button>
 
@@ -893,15 +887,15 @@ function Popup() {
               width: '36px',
               height: '44px',
               padding: '0',
-              backgroundColor: isMarkingDone ? '#f3f4f6' 
-                              : currentStatus === 'Done' ? '#d1fae5'
-                              : '#ffffff',
+              backgroundColor: isMarkingDone ? '#f3f4f6'
+                : currentStatus === 'Done' ? '#d1fae5'
+                  : '#ffffff',
               color: isMarkingDone ? '#9ca3af'
-                    : currentStatus === 'Done' ? '#065f46'
-                    : '#059669',
-              border: `1px solid ${isMarkingDone ? '#d1d5db' 
-                                  : currentStatus === 'Done' ? '#a7f3d0'
-                                  : '#059669'}`,
+                : currentStatus === 'Done' ? '#065f46'
+                  : '#059669',
+              border: `1px solid ${isMarkingDone ? '#d1d5db'
+                : currentStatus === 'Done' ? '#a7f3d0'
+                  : '#059669'}`,
               borderRadius: '6px',
               fontSize: '14px',
               cursor: (isMarkingDone || isLoading) ? 'not-allowed' : 'pointer',
@@ -928,15 +922,15 @@ function Popup() {
               width: '36px',
               height: '44px',
               padding: '0',
-              backgroundColor: isMarkingNext ? '#f3f4f6' 
-                              : currentStatus === 'Next' ? '#dbeafe'
-                              : '#ffffff',
+              backgroundColor: isMarkingNext ? '#f3f4f6'
+                : currentStatus === 'Next' ? '#dbeafe'
+                  : '#ffffff',
               color: isMarkingNext ? '#9ca3af'
-                    : currentStatus === 'Next' ? '#1d4ed8'
-                    : '#2563eb',
-              border: `1px solid ${isMarkingNext ? '#d1d5db' 
-                                  : currentStatus === 'Next' ? '#93c5fd'
-                                  : '#2563eb'}`,
+                : currentStatus === 'Next' ? '#1d4ed8'
+                  : '#2563eb',
+              border: `1px solid ${isMarkingNext ? '#d1d5db'
+                : currentStatus === 'Next' ? '#93c5fd'
+                  : '#2563eb'}`,
               borderRadius: '6px',
               fontSize: '14px',
               cursor: (isMarkingNext || isLoading) ? 'not-allowed' : 'pointer',

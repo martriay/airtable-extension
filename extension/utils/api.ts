@@ -158,14 +158,14 @@ export const getTags = async (): Promise<string[]> => {
         console.log('⚠️ API failed, using stale cached tags');
         return JSON.parse(cachedTags);
       }
-      
+
       // If 401 and no cache, return demo tags
       if (response.status === 401) {
         console.log('🚧 Auth failed, switching to demo mode');
         const demoTags = ['technology', 'programming', 'web', 'design', 'tutorial'];
         return demoTags;
       }
-      
+
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -179,13 +179,13 @@ export const getTags = async (): Promise<string[]> => {
     return tags;
   } catch (error) {
     console.error('Error fetching tags:', error);
-    
+
     // Fallback to cached tags or demo tags
     if (cachedTags) {
       console.log('⚠️ Using cached tags as fallback');
       return JSON.parse(cachedTags);
     }
-    
+
     console.log('🚧 Using demo tags as fallback');
     return ['technology', 'programming', 'web', 'design', 'tutorial'];
   }
@@ -223,7 +223,7 @@ export const checkUrl = async (url: string): Promise<CheckResponse> => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    return await response.json();
   } catch (error) {
     console.error('Error checking URL:', error);
     // Return mock response as fallback
@@ -285,9 +285,9 @@ export const deleteEntry = async (recordId: string): Promise<DeleteResponse> => 
 export const markAsDone = async (recordId: string): Promise<MarkDoneResponse> => {
   // Generate user's local date in YYYY-MM-DD format
   const today = new Date();
-  const userLocalDate = today.getFullYear()
-    + '-' + String(today.getMonth() + 1).padStart(2, '0')
-    + '-' + String(today.getDate()).padStart(2, '0');
+  const userLocalDate = `${today.getFullYear()
+  }-${String(today.getMonth() + 1).padStart(2, '0')
+  }-${String(today.getDate()).padStart(2, '0')}`;
 
   const response = await fetch(`${BACKEND_URL}/api/mark-done`, {
     method: 'POST',

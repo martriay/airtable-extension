@@ -19,18 +19,18 @@ export default defineConfig({
             description: 'Quickly save web pages to Airtable with smart tagging and status management',
             permissions: ['storage', 'activeTab'],
             host_permissions: ['https://*/*', 'http://*/*'],
-            action: { 
+            action: {
               default_popup: 'popup.html',
               default_icon: {
-                '16': 'icons/icon-16.png',
-                '48': 'icons/icon-48.png',
-                '128': 'icons/icon-128.png'
-              }
+                16: 'icons/icon-16.png',
+                48: 'icons/icon-48.png',
+                128: 'icons/icon-128.png',
+              },
             },
             icons: {
-              '16': 'icons/icon-16.png',
-              '48': 'icons/icon-48.png',
-              '128': 'icons/icon-128.png'
+              16: 'icons/icon-16.png',
+              48: 'icons/icon-48.png',
+              128: 'icons/icon-128.png',
             },
             background: { service_worker: 'background.js' },
           }, null, 2),
@@ -42,7 +42,7 @@ export default defineConfig({
       generateBundle() {
         // Copy icon files to dist/icons/
         const iconFiles = ['icon-16.png', 'icon-48.png', 'icon-128.png'];
-        iconFiles.forEach(iconFile => {
+        iconFiles.forEach((iconFile) => {
           const iconPath = resolve(__dirname, 'icons', iconFile);
           if (existsSync(iconPath)) {
             const iconContent = readFileSync(iconPath);
