@@ -143,6 +143,9 @@ function Popup() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
+  const [tagList, setTagList] = useState<string[]>([]); // New: array of individual tags
+  const [currentTagInput, setCurrentTagInput] = useState(''); // New: current input for adding tags
+  const [selectedTagIndex, setSelectedTagIndex] = useState(-1); // New: index of selected tag for keyboard navigation
   const [isLoading, setIsLoading] = useState(false); // Start optimistic
   const [isInitializing, setIsInitializing] = useState(true); // Track URL checking
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -158,6 +161,104 @@ function Popup() {
   const [currentStatus, setCurrentStatus] = useState<string | undefined>(undefined);
   const [doneDate, setDoneDate] = useState<string | undefined>(undefined);
   const tagsInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper function to generate a color for a tag
+  const getTagColor = (tag: string): string => {
+    const colors = [
+      '#A5B4FC', // Light Blue/Purple (like "ai" tags)
+      '#FDE68A', // Light Yellow (like "productivity" tags)  
+      '#A7F3D0', // Light Green (like "Done" status)
+      '#FECACA', // Light Red/Pink (like "news" tags)
+      '#E0E7FF', // Very Light Blue (like "Article" type)
+      '#A78BFA', // Light Purple (like "Clase" tags)
+      '#86EFAC', // Light Green (like "masajes" tags)
+      '#7DD3FC', // Light Cyan (like "Twitter thread" type)
+      '#FBCFE8', // Light Pink (like some category tags)
+      '#FED7AA', // Light Orange
+      '#BAE6FD', // Very Light Blue (like "organizations" tags)
+      '#C7D2FE', // Light Indigo
+      '#D8B4FE', // Light Violet
+      '#BBF7D0', // Mint Green
+      '#FEF3C7', // Light Amber
+      '#E879F9', // Light Magenta
+    ];
+    
+    try {
+      if (!tag || typeof tag !== 'string') {
+        return colors[0]; // Default to first color
+      }
+      
+      let hash = 0;
+      for (let i = 0; i < tag.length; i++) {
+        hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    } catch (error) {
+      console.error('Error generating tag color:', error);
+      return colors[0]; // Fallback to first color
+    }
+  };
+
+  // Helper function to sync tagList with tags string
+  const syncTagsToString = (newTagList: string[]) => {
+    const newTagsString = newTagList.join(', ');
+    setTags(newTagsString);
+    return newTagsString;
+  };
+
+  // Helper function to add a tag
+  const addTag = (tagToAdd: string) => {
+    const trimmedTag = tagToAdd.trim();
+    if (trimmedTag && !tagList.some(tag => tag.toLowerCase() === trimmedTag.toLowerCase())) {
+      const newTagList = [...tagList, trimmedTag];
+      setTagList(newTagList);
+      const newTagsString = syncTagsToString(newTagList);
+      checkForChanges(url, title, newTagsString);
+    }
+    setCurrentTagInput('');
+    setShowSuggestions(false);
+    setActiveSuggestion(-1);
+    setSelectedTagIndex(-1); // Reset selection
+  };
+
+  // Helper function to remove a tag
+  const removeTag = (tagToRemove: string) => {
+    const newTagList = tagList.filter(tag => tag !== tagToRemove);
+    setTagList(newTagList);
+    const newTagsString = syncTagsToString(newTagList);
+    checkForChanges(url, title, newTagsString);
+    setSelectedTagIndex(-1); // Reset selection
+  };
+
+  // Helper function to remove tag by index
+  const removeTagByIndex = (index: number) => {
+    if (index >= 0 && index < tagList.length) {
+      const newTagList = tagList.filter((_, i) => i !== index);
+      setTagList(newTagList);
+      const newTagsString = syncTagsToString(newTagList);
+      checkForChanges(url, title, newTagsString);
+      // Adjust selected index after removal
+      if (selectedTagIndex >= newTagList.length) {
+        setSelectedTagIndex(newTagList.length - 1);
+      }
+    }
+  };
+
+  // Sync tagList when tags string changes (for initialization)
+  useEffect(() => {
+    try {
+      const tagsFromString = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      if (JSON.stringify(tagsFromString) !== JSON.stringify(tagList)) {
+        setTagList(tagsFromString);
+      }
+    } catch (error) {
+      console.error('Error syncing tags:', error);
+      // Fallback: set empty tagList if parsing fails
+      if (tagList.length > 0) {
+        setTagList([]);
+      }
+    }
+  }, [tags]); // Remove tagList from dependencies to prevent infinite loop
 
   useEffect(() => {
     const initializeSmartly = async () => {
@@ -256,18 +357,17 @@ function Popup() {
     }
   };
 
-  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
-    setTags(value);
-    checkForChanges(url, title, value);
+    setCurrentTagInput(value);
 
-    // Get the current word being typed
-    const words = value.split(',');
-    const currentWord = words[words.length - 1].trim().toLowerCase();
-
-    if (currentWord.length > 0) {
-      const suggestions = availableTags.filter((tag) => tag.toLowerCase().includes(currentWord)
-        && !words.slice(0, -1).map((w) => w.trim().toLowerCase()).includes(tag.toLowerCase()));
+    // Filter suggestions based on current input and exclude already added tags
+    const trimmedValue = value.trim().toLowerCase();
+    if (trimmedValue.length > 0) {
+      const suggestions = availableTags.filter((tag) => 
+        tag.toLowerCase().includes(trimmedValue) &&
+        !tagList.some(existingTag => existingTag.toLowerCase() === tag.toLowerCase())
+      );
       setFilteredSuggestions(suggestions);
       setShowSuggestions(suggestions.length > 0);
       setActiveSuggestion(-1);
@@ -288,7 +388,7 @@ function Popup() {
         return;
       } if (e.key === 'Enter' && activeSuggestion >= 0) {
         e.preventDefault();
-        selectSuggestion(filteredSuggestions[activeSuggestion]);
+        addTag(filteredSuggestions[activeSuggestion]);
         return;
       } if (e.key === 'Escape') {
         setShowSuggestions(false);
@@ -297,19 +397,60 @@ function Popup() {
       }
     }
 
-    // Handle Enter for saving when there are unsaved changes
-    if (e.key === 'Enter' && hasUnsavedChanges && savedRecordId) {
+    // Handle tag navigation when input is empty
+    if (!currentTagInput && tagList.length > 0) {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (selectedTagIndex === -1) {
+          // Start selection from the last tag
+          setSelectedTagIndex(tagList.length - 1);
+        } else if (selectedTagIndex > 0) {
+          setSelectedTagIndex(selectedTagIndex - 1);
+        }
+        return;
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (selectedTagIndex >= 0 && selectedTagIndex < tagList.length - 1) {
+          setSelectedTagIndex(selectedTagIndex + 1);
+        } else if (selectedTagIndex === tagList.length - 1) {
+          // Move focus back to input
+          setSelectedTagIndex(-1);
+        }
+        return;
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedTagIndex >= 0) {
+          // Delete selected tag
+          removeTagByIndex(selectedTagIndex);
+        } else if (e.key === 'Backspace') {
+          // Delete last tag when no tag is selected
+          const lastTag = tagList[tagList.length - 1];
+          removeTag(lastTag);
+        }
+        return;
+      }
+    }
+
+    // Clear tag selection when user starts typing
+    if (selectedTagIndex >= 0 && currentTagInput) {
+      setSelectedTagIndex(-1);
+    }
+
+    if (e.key === 'Enter') {
       e.preventDefault();
-      handleSave();
+      if (currentTagInput.trim()) {
+        addTag(currentTagInput);
+      } else if (hasUnsavedChanges && savedRecordId) {
+        handleSave();
+      }
+    } else if (e.key === ',' && currentTagInput.trim()) {
+      e.preventDefault();
+      addTag(currentTagInput);
     }
   };
 
   const selectSuggestion = (suggestion: string) => {
-    const words = tags.split(',');
-    words[words.length - 1] = suggestion;
-    setTags(`${words.join(', ')}, `);
-    setShowSuggestions(false);
-    setActiveSuggestion(-1);
+    addTag(suggestion);
     tagsInputRef.current?.focus();
   };
 
@@ -552,37 +693,117 @@ function Popup() {
       <div style={{ marginBottom: '16px', position: 'relative' }}>
         <label style={{
           display: 'block',
-          marginBottom: '4px',
+          marginBottom: '8px',
           fontSize: '13px',
           fontWeight: '500',
           color: '#374151',
         }}>
-          Tags (comma-separated):
+          Tags:
         </label>
-        <input
-          ref={tagsInputRef}
-          type="text"
-          value={tags}
-          onChange={handleTagsChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (filteredSuggestions.length > 0) setShowSuggestions(true);
-          }}
-          onBlur={() => {
-            // Delay hiding suggestions to allow clicking on them
-            setTimeout(() => setShowSuggestions(false), 200);
-          }}
-          placeholder="e.g. technology, programming, web"
+        
+        {/* Combined input with tags inside */}
+        <div
           style={{
-            width: '100%',
-            padding: '10px 12px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 12px',
             border: '1px solid #d1d5db',
             borderRadius: '6px',
-            fontSize: '14px',
-            fontFamily: 'inherit',
+            backgroundColor: 'white',
+            minHeight: '44px',
             boxSizing: 'border-box',
+            width: '100%',
+            maxWidth: '100%',
+            overflow: 'hidden',
           }}
-        />
+          onClick={() => tagsInputRef.current?.focus()}
+        >
+          {/* Display existing tags as colored blocks inside input */}
+          {tagList.map((tag, index) => (
+            <div
+              key={tag}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                backgroundColor: getTagColor(tag),
+                color: '#374151',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 'normal',
+                gap: '4px',
+                flexShrink: 0,
+                border: selectedTagIndex === index ? '2px solid #2563eb' : '2px solid transparent',
+                outline: selectedTagIndex === index ? '1px solid #93c5fd' : 'none',
+              }}
+            >
+              <span>{tag}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeTag(tag);
+                }}
+                style={{
+                  background: 'rgba(0, 0, 0, 0.1)',
+                  border: 'none',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  padding: '0',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  lineHeight: '1',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
+                }}
+                title={`Remove ${tag}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          
+          {/* Input for adding new tags */}
+          <input
+            ref={tagsInputRef}
+            type="text"
+            value={currentTagInput}
+            onChange={handleTagInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (filteredSuggestions.length > 0) setShowSuggestions(true);
+            }}
+            onBlur={() => {
+              // Delay hiding suggestions to allow clicking on them
+              setTimeout(() => setShowSuggestions(false), 200);
+            }}
+            placeholder={tagList.length === 0 ? "Add a tag (press Enter or comma to add)" : ""}
+            style={{
+              border: 'none',
+              outline: 'none',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              backgroundColor: 'transparent',
+              flex: tagList.length === 0 ? '1' : '0 1 auto',
+              minWidth: tagList.length === 0 ? '200px' : (currentTagInput ? `${Math.max(20, currentTagInput.length * 8 + 10)}px` : '20px'),
+              width: tagList.length === 0 ? 'auto' : (currentTagInput ? `${Math.max(20, currentTagInput.length * 8 + 10)}px` : '20px'),
+              maxWidth: tagList.length === 0 ? 'none' : '150px',
+              padding: '2px 0',
+            }}
+          />
+        </div>
 
         {showSuggestions && (
           <div style={{
@@ -597,6 +818,7 @@ function Popup() {
             zIndex: 1000,
             maxHeight: '150px',
             overflowY: 'auto',
+            marginTop: '2px',
           }}>
             {filteredSuggestions.map((suggestion, index) => (
               <div

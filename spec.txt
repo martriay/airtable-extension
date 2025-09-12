@@ -1,4 +1,4 @@
-APP SPEC — "Save to Airtable" (Current Implementation v3.0)
+APP SPEC — "Save to Airtable" (Current Implementation v3.1)
 
 ──────────────────────────────────
 0. Goal
@@ -13,6 +13,7 @@ APP SPEC — "Save to Airtable" (Current Implementation v3.0)
 • Status management with "Mark as Done" and "Mark as Next" functionality.
 • Smart status display with colloquial date formatting.
 • Undo functionality for status changes.
+• Modern colored tag blocks interface with keyboard navigation.
 
 ──────────────────────────────────
 1. Airtable Schema
@@ -225,14 +226,47 @@ Behaviour:
 Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
 
 ──────────────────────────────────
-4. Development Tools
+4. Tag Interface (v3.1)
+──────────────────────────────────
+Modern inline tag blocks with full keyboard navigation:
+
+Visual Design:
+• Tags displayed as colored blocks inside input field (like Gmail, Slack)
+• Airtable-style pastel color palette with dark text for readability
+• 16 distinct colors automatically assigned based on tag content
+• Consistent colors per tag name across sessions
+• Clean, minimal design without distracting hover effects
+
+Interaction Methods:
+• Mouse: Click × button on any tag to remove
+• Keyboard: Full navigation and editing support
+  - Enter/Comma: Add new tag from input
+  - Backspace (empty input): Delete last tag
+  - Arrow Left/Right: Navigate between tags
+  - Delete/Backspace (selected tag): Remove specific tag
+  - Visual selection indicator with blue border
+
+Input Behavior:
+• Dynamic width: Expands with content, contracts when empty
+• Placeholder shown only when no tags exist
+• Autocomplete suggestions from existing tags
+• No phantom stretching or layout issues
+
+Benefits:
+• Eliminates comma/spacing confusion
+• Professional, modern appearance
+• Efficient keyboard-only workflow
+• Visual clarity and tag distinction
+
+──────────────────────────────────
+5. Development Tools
 ──────────────────────────────────
 • Standard build process: `npm run build` creates production-ready extension
 • Manual testing: Load extension from `extension/dist/` in Chrome developer mode
 • Testing: `npm test` runs Vitest unit tests
 
 ──────────────────────────────────
-5. Repo / File Layout  
+6. Repo / File Layout  
 ──────────────────────────────────
 /api                     ← Vercel Serverless Functions
   save.ts                ← Main save endpoint with deduplication (Status/Type optional)
@@ -268,7 +302,7 @@ Dependencies: react, react-dom (no Chakra UI, no axios, no toast library)
   iOS-Integration.md     ← iOS Shortcut integration guide
 
 ──────────────────────────────────
-6. Testing & CI/CD
+7. Testing & CI/CD
 ──────────────────────────────────
 Test Framework: Vitest with Node environment
 Coverage:
@@ -286,7 +320,7 @@ Deployment:
 • Extension: Manual load from extension/dist/ in Chrome developer mode
 
 ──────────────────────────────────
-7. Current Behavior & Acceptance Tests
+8. Current Behavior & Acceptance Tests
 ──────────────────────────────────
 ✔ Smart popup initialization → check URL first, only save if new (faster for existing URLs)
 ✔ Title cleaning → site suffixes like "- YouTube", "| Twitter" automatically removed
@@ -317,7 +351,7 @@ Deployment:
 ✔ Status preservation → Updating existing entries (tags, title) preserves current status
 
 ──────────────────────────────────
-8. Current Implementation Notes
+9. Current Implementation Notes
 ──────────────────────────────────
 • Smart initialization: check URL existence first, only auto-save if new (performance optimized)
 • Title cleaning removes site suffixes using comprehensive regex patterns

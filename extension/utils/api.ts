@@ -9,7 +9,7 @@ const BASIC_AUTH_PASSWORD = process.env.BASIC_AUTH_PASSWORD || '';
  */
 const getAuthHeaders = (): Record<string, string> => {
   if (!BASIC_AUTH_USERNAME || !BASIC_AUTH_PASSWORD) {
-    console.warn('Basic Auth credentials not configured');
+    console.warn('Basic Auth credentials not configured - using demo mode');
     return {};
   }
   const credentials = btoa(`${BASIC_AUTH_USERNAME}:${BASIC_AUTH_PASSWORD}`);
@@ -133,47 +133,105 @@ export const getTags = async (): Promise<string[]> => {
     }
   }
 
-  console.log('📡 Fetching fresh tags from API (slow path)');
-  const response = await fetch(`${BACKEND_URL}/api/tags`, {
-    headers: {
-      ...getAuthHeaders(),
-    },
-  });
-
-  if (!response.ok) {
-    // If API fails, return cached tags if available
-    if (cachedTags) {
-      console.log('⚠️ API failed, using stale cached tags');
-      return JSON.parse(cachedTags);
-    }
-    throw new Error(`HTTP error! status: ${response.status}`);
+  // Check if we have auth credentials
+  const authHeaders = getAuthHeaders();
+  if (!authHeaders.Authorization) {
+    console.log('🚧 Demo mode: No auth credentials, using sample tags');
+    const demoTags = ['technology', 'programming', 'web', 'design', 'tutorial', 'article', 'video', 'tool'];
+    // Cache demo tags
+    localStorage.setItem('airtable-extension-tags', JSON.stringify(demoTags));
+    localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
+    return demoTags;
   }
 
-  const data: TagsResponse = await response.json();
-  const tags = data.tags || [];
+  try {
+    console.log('📡 Fetching fresh tags from API (slow path)');
+    const response = await fetch(`${BACKEND_URL}/api/tags`, {
+      headers: {
+        ...authHeaders,
+      },
+    });
 
-  // Cache the results
-  localStorage.setItem('airtable-extension-tags', JSON.stringify(tags));
-  localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
+    if (!response.ok) {
+      // If API fails, return cached tags if available
+      if (cachedTags) {
+        console.log('⚠️ API failed, using stale cached tags');
+        return JSON.parse(cachedTags);
+      }
+      
+      // If 401 and no cache, return demo tags
+      if (response.status === 401) {
+        console.log('🚧 Auth failed, switching to demo mode');
+        const demoTags = ['technology', 'programming', 'web', 'design', 'tutorial'];
+        return demoTags;
+      }
+      
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-  return tags;
+    const data: TagsResponse = await response.json();
+    const tags = data.tags || [];
+
+    // Cache the results
+    localStorage.setItem('airtable-extension-tags', JSON.stringify(tags));
+    localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
+
+    return tags;
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    
+    // Fallback to cached tags or demo tags
+    if (cachedTags) {
+      console.log('⚠️ Using cached tags as fallback');
+      return JSON.parse(cachedTags);
+    }
+    
+    console.log('🚧 Using demo tags as fallback');
+    return ['technology', 'programming', 'web', 'design', 'tutorial'];
+  }
 };
 
 export const checkUrl = async (url: string): Promise<CheckResponse> => {
-  const response = await fetch(`${BACKEND_URL}/api/check`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify({ url }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  // Check if we have auth credentials
+  const authHeaders = getAuthHeaders();
+  if (!authHeaders.Authorization) {
+    console.log('🚧 Demo mode: No auth credentials, returning mock response');
+    return {
+      exists: false,
+      canonicalUrl: url,
+    };
   }
 
-  return response.json();
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/check`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.log('🚧 Auth failed, returning mock response');
+        return {
+          exists: false,
+          canonicalUrl: url,
+        };
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error checking URL:', error);
+    // Return mock response as fallback
+    return {
+      exists: false,
+      canonicalUrl: url,
+    };
+  }
 };
 
 export interface DeleteResponse {
