@@ -1,6 +1,7 @@
 import { canonicalize } from './src/canonical';
 import { findByUrl, create, update, detectContentType } from './src/airtable';
 import { validateBasicAuth, sendUnauthorizedResponse } from './src/auth';
+import { cleanTitle } from './src/title';
 
 interface SaveRequest {
   url: string;
@@ -55,7 +56,8 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const { canonical, hash } = await canonicalize(body.url);
+    const { canonical } = await canonicalize(body.url);
+    const cleanedTitle = cleanTitle(body.title);
 
     // Check for existing record with same canonical URL
     const existingRecord = await findByUrl(canonical);
@@ -64,7 +66,7 @@ export default async function handler(req: any, res: any) {
       if (body.forceUpdate && body.recordId === existingRecord.id) {
         const contentType = detectContentType(canonical);
         const updatedRecord = await update(existingRecord.id, {
-          Name: body.title,
+          Name: cleanedTitle,
           Link: canonical,
           Tags: body.tags,
           // Don't override Status when updating - preserve existing status
@@ -95,7 +97,7 @@ export default async function handler(req: any, res: any) {
     
     // Create record with Name, Link, Tags, Status, and Type fields
     const newRecord = await create({
-      Name: body.title,
+      Name: cleanedTitle,
       Link: canonical,
       Tags: body.tags,
       Status: 'To do',

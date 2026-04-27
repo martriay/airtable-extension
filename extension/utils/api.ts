@@ -86,7 +86,18 @@ export const postSave = async (data: SaveRequest): Promise<SaveResponse> => {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return response.json();
+  const result: SaveResponse = await response.json();
+
+  // Write-through: keep the autocomplete cache fresh without a refetch.
+  if (data.tags?.length) {
+    try {
+      mergeTagsIntoCache(data.tags);
+    } catch (err) {
+      console.error('Failed to merge tags into cache:', err);
+    }
+  }
+
+  return result;
 };
 
 export const patchUnit = async (recordId: string, fields: UnitFields): Promise<void> => {
@@ -119,75 +130,89 @@ export const deleteUnit = async (recordId: string): Promise<void> => {
   }
 };
 
-export const getTags = async (): Promise<string[]> => {
-  // Try to get cached tags first
-  const cachedTags = localStorage.getItem('airtable-extension-tags');
-  const cacheTimestamp = localStorage.getItem('airtable-extension-tags-timestamp');
+const TAGS_CACHE_KEY = 'airtable-extension-tags';
+const TAGS_TIMESTAMP_KEY = 'airtable-extension-tags-timestamp';
+const TAGS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-  // Use cache if it's less than 1 hour old
-  if (cachedTags && cacheTimestamp) {
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    if (parseInt(cacheTimestamp, 10) > oneHourAgo) {
-      console.log('🚀 Using cached tags (fast path)');
-      return JSON.parse(cachedTags);
-    }
-  }
+const writeTagsCache = (tags: string[]): void => {
+  localStorage.setItem(TAGS_CACHE_KEY, JSON.stringify(tags));
+  localStorage.setItem(TAGS_TIMESTAMP_KEY, Date.now().toString());
+};
 
-  // Check if we have auth credentials
+const readTagsCache = (): string[] | null => {
+  const cached = localStorage.getItem(TAGS_CACHE_KEY);
+  return cached ? JSON.parse(cached) : null;
+};
+
+const fetchTagsFromApi = async (): Promise<string[] | null> => {
   const authHeaders = getAuthHeaders();
-  if (!authHeaders.Authorization) {
-    console.log('🚧 Demo mode: No auth credentials, using sample tags');
-    const demoTags = ['technology', 'programming', 'web', 'design', 'tutorial', 'article', 'video', 'tool'];
-    // Cache demo tags
-    localStorage.setItem('airtable-extension-tags', JSON.stringify(demoTags));
-    localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
-    return demoTags;
-  }
+  if (!authHeaders.Authorization) return null;
 
   try {
-    console.log('📡 Fetching fresh tags from API (slow path)');
-    const response = await fetch(`${BACKEND_URL}/api/tags`, {
-      headers: {
-        ...authHeaders,
-      },
-    });
-
-    if (!response.ok) {
-      // If API fails, return cached tags if available
-      if (cachedTags) {
-        console.log('⚠️ API failed, using stale cached tags');
-        return JSON.parse(cachedTags);
-      }
-
-      // If 401 and no cache, return demo tags
-      if (response.status === 401) {
-        console.log('🚧 Auth failed, switching to demo mode');
-        const demoTags = ['technology', 'programming', 'web', 'design', 'tutorial'];
-        return demoTags;
-      }
-
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
+    const response = await fetch(`${BACKEND_URL}/api/tags`, { headers: { ...authHeaders } });
+    if (!response.ok) return null;
     const data: TagsResponse = await response.json();
-    const tags = data.tags || [];
-
-    // Cache the results
-    localStorage.setItem('airtable-extension-tags', JSON.stringify(tags));
-    localStorage.setItem('airtable-extension-tags-timestamp', Date.now().toString());
-
-    return tags;
+    return data.tags || [];
   } catch (error) {
     console.error('Error fetching tags:', error);
+    return null;
+  }
+};
 
-    // Fallback to cached tags or demo tags
-    if (cachedTags) {
-      console.log('⚠️ Using cached tags as fallback');
-      return JSON.parse(cachedTags);
+const DEMO_TAGS = ['technology', 'programming', 'web', 'design', 'tutorial', 'article', 'video', 'tool'];
+
+// Stale-while-revalidate: if a cache exists, return it synchronously and
+// refresh in the background regardless of age. The popup never waits on
+// /api/tags after the very first successful fetch.
+export const getTags = async (): Promise<string[]> => {
+  const cached = readTagsCache();
+  const cacheTimestamp = localStorage.getItem(TAGS_TIMESTAMP_KEY);
+  const cacheAge = cacheTimestamp ? Date.now() - parseInt(cacheTimestamp, 10) : Infinity;
+
+  if (cached) {
+    // Fire-and-forget background refresh
+    fetchTagsFromApi().then((fresh) => {
+      if (fresh) writeTagsCache(fresh);
+    });
+
+    // Stale-but-usable: return immediately for any cache, log if past TTL
+    if (cacheAge > TAGS_CACHE_TTL_MS) {
+      console.log('⚠️ Returning stale cache while revalidating');
+    } else {
+      console.log('🚀 Using cached tags (fast path)');
     }
+    return cached;
+  }
 
-    console.log('🚧 Using demo tags as fallback');
-    return ['technology', 'programming', 'web', 'design', 'tutorial'];
+  // No cache — must fetch synchronously
+  const fresh = await fetchTagsFromApi();
+  if (fresh) {
+    writeTagsCache(fresh);
+    return fresh;
+  }
+
+  // No cache, fetch failed (or no auth) — fall back to demo tags
+  console.log('🚧 Falling back to demo tags');
+  writeTagsCache(DEMO_TAGS);
+  return DEMO_TAGS;
+};
+
+// Write-through: merge tags the user just saved into the cache so they're
+// immediately suggestible without a /api/tags round-trip.
+export const mergeTagsIntoCache = (newTags: string[]): void => {
+  const existing = readTagsCache() ?? [];
+  const seen = new Set(existing.map((t) => t.toLowerCase()));
+  const additions = newTags
+    .map((t) => t.trim())
+    .filter((t) => {
+      if (!t) return false;
+      const key = t.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  if (additions.length > 0) {
+    writeTagsCache([...existing, ...additions]);
   }
 };
 

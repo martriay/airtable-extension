@@ -1,9 +1,12 @@
 import { markAsDone } from './src/airtable';
 import { validateBasicAuth, sendUnauthorizedResponse } from './src/auth';
 
+// doneDate must be the client's local YYYY-MM-DD. The server has no way
+// to know the caller's timezone, so the calendar date is the client's
+// responsibility. Falls back to the server's UTC date if absent.
 interface MarkDoneRequest {
   recordId: string;
-  doneDate?: string; // Optional user's local date in YYYY-MM-DD format
+  doneDate?: string;
 }
 
 interface MarkDoneResponse {

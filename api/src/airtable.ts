@@ -122,16 +122,22 @@ export async function getAllRecords(): Promise<AirtableRecord[]> {
 }
 
 async function processTagsForCreation(requestedTags: string[]): Promise<string[]> {
-  // Clean and prepare tags for creation - typecast will handle new option creation
+  // Clean and prepare tags: trim, drop empties, length-limit, dedupe case-insensitively
+  // (preserves the case of the first occurrence, matching the extension's client-side behavior).
   try {
-    // Simply clean up the tags (trim whitespace, remove empty strings)
-    const cleanedTags = requestedTags
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0)
-      .filter(tag => tag.length <= 100); // Reasonable length limit
-    
+    const seen = new Set<string>();
+    const cleanedTags: string[] = [];
+    for (const raw of requestedTags) {
+      const tag = raw.trim();
+      if (!tag || tag.length > 100) continue;
+      const key = tag.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      cleanedTags.push(tag);
+    }
+
     console.log('Processing tags for creation:', requestedTags, '-> cleaned:', cleanedTags);
-    
+
     return cleanedTags;
   } catch (error) {
     console.error('Error processing tags, using original tags:', error);

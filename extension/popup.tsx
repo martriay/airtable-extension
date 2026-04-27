@@ -9,6 +9,7 @@ import {
   markAsTodo,
   postSave,
 } from './utils/api';
+import cleanTitle from './utils/title';
 
 // Format date in a more colloquial way
 function formatColloquialDate(dateString: string): string {
@@ -57,84 +58,6 @@ function formatColloquialDate(dateString: string): string {
     // Fallback to original format if parsing fails
     return `Done ${dateString}`;
   }
-}
-
-// Clean title by removing common site suffixes
-function cleanTitle(title: string): string {
-  if (!title) return title;
-
-  // Common patterns to remove (case insensitive)
-  const suffixPatterns = [
-    // YouTube variations
-    /\s*[-–—|]\s*YouTube$/i,
-    /\s*[-–—|]\s*youtube\.com$/i,
-
-    // Twitter/X variations
-    /\s*[-–—|]\s*Twitter$/i,
-    /\s*[-–—|]\s*X$/i,
-    /\s*on\s+Twitter$/i,
-    /\s*on\s+X$/i,
-
-    // Reddit variations
-    /\s*[-–—|]\s*Reddit$/i,
-    /\s*[-–—|]\s*r\/\w+$/i,
-
-    // LinkedIn variations
-    /\s*[-–—|]\s*LinkedIn$/i,
-
-    // Facebook variations
-    /\s*[-–—|]\s*Facebook$/i,
-
-    // Instagram variations
-    /\s*[-–—|]\s*Instagram$/i,
-
-    // TikTok variations
-    /\s*[-–—|]\s*TikTok$/i,
-    /\s*on\s+TikTok$/i,
-
-    // Medium variations
-    /\s*[-–—|]\s*Medium$/i,
-
-    // Vimeo variations
-    /\s*[-–—|]\s*Vimeo$/i,
-
-    // Twitch variations
-    /\s*[-–—|]\s*Twitch$/i,
-
-    // GitHub variations
-    /\s*[-–—|]\s*GitHub$/i,
-
-    // Stack Overflow variations
-    /\s*[-–—|]\s*Stack\s*Overflow$/i,
-
-    // Wikipedia variations
-    /\s*[-–—|]\s*Wikipedia$/i,
-
-    // General news sites (common patterns)
-    /\s*[-–—|]\s*BBC$/i,
-    /\s*[-–—|]\s*CNN$/i,
-    /\s*[-–—|]\s*The\s+\w+$/i, // "The Guardian", "The Times", etc.
-
-    // Generic patterns (be more conservative with these)
-    /\s*[-–—|]\s*\w+\.com$/i, // domain.com
-  ];
-
-  let cleanedTitle = title.trim();
-
-  // Apply each pattern
-  for (const pattern of suffixPatterns) {
-    cleanedTitle = cleanedTitle.replace(pattern, '').trim();
-  }
-
-  // Remove any trailing separators that might be left
-  cleanedTitle = cleanedTitle.replace(/\s*[-–—|]\s*$/, '').trim();
-
-  // If we cleaned everything away, return the original
-  if (!cleanedTitle) {
-    return title;
-  }
-
-  return cleanedTitle;
 }
 
 function Popup() {
@@ -270,16 +193,20 @@ function Popup() {
           setUrl(currentUrl);
           setTitle(currentTitle);
 
+          // Fire tags fetch in the background — autocomplete doesn't gate the
+          // form, so the popup must never wait on /api/tags.
+          getTags()
+            .then((availTags) => setAvailableTags(availTags))
+            .catch((err) => {
+              console.error('Tags fetch failed (non-blocking):', err);
+              setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
+            });
+
           try {
-            // Fetch available tags in parallel with URL check
-            console.log('🔄 Starting parallel fetch: tags + URL check for:', currentUrl);
-            const [availTags, urlCheck] = await Promise.all([
-              getTags(),
-              checkUrl(currentUrl),
-            ]);
+            console.log('🔄 Checking URL:', currentUrl);
+            const urlCheck = await checkUrl(currentUrl);
 
             console.log('📊 URL Check result:', JSON.stringify(urlCheck, null, 2));
-            setAvailableTags(availTags);
 
             if (urlCheck.exists && urlCheck.existingData) {
               // URL already exists - populate form with existing data
@@ -316,8 +243,7 @@ function Popup() {
             }
           } catch (error) {
             console.error('Failed to initialize:', error);
-            // Fallback to basic initialization
-            setAvailableTags(['technology', 'programming', 'web', 'design', 'article']);
+            // Fallback to basic initialization (tags handled separately in background)
             setOriginalData({ url: currentUrl, title: currentTitle, tags: '' });
             setIsLoading(false);
             setIsInitializing(false); // Done initializing
