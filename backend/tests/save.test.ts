@@ -16,7 +16,16 @@ vi.mock('../src/airtable', () => ({
   create: vi.fn()
 }));
 
+vi.mock('../../api/src/auth', () => ({
+  validateBasicAuth: vi.fn().mockReturnValue({ authenticated: true }),
+  createUnauthorizedResponse: (error?: string) => new Response(
+    JSON.stringify({ error: 'Unauthorized', details: error ?? 'Unauthorized' }),
+    { status: 401, headers: { 'Content-Type': 'application/json' } }
+  )
+}));
+
 import { findByHash, create } from '../src/airtable';
+import { validateBasicAuth } from '../../api/src/auth';
 
 describe('save API', () => {
   beforeEach(() => {
@@ -36,10 +45,25 @@ describe('save API', () => {
   it('should return 405 for non-POST methods', async () => {
     const request = new Request('http://localhost/save', { method: 'GET' });
     const response = await handler(request);
-    
+
     expect(response.status).toBe(405);
     const data = await response.json();
     expect(data.error).toBe('Method not allowed');
+  });
+
+  it('should return 401 when auth fails', async () => {
+    vi.mocked(validateBasicAuth).mockReturnValueOnce({
+      authenticated: false,
+      error: 'Missing Authorization header',
+    });
+
+    const request = new Request('http://localhost/save', {
+      method: 'POST',
+      body: JSON.stringify({ url: 'x', title: 'y', tags: [], source: 'Extension' })
+    });
+    const response = await handler(request);
+
+    expect(response.status).toBe(401);
   });
 
   it('should return 400 for invalid JSON', async () => {
