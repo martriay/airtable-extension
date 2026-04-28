@@ -58,4 +58,44 @@ describe('canonicalize', () => {
   it('should throw error for invalid URLs', async () => {
     await expect(canonicalize('not-a-url')).rejects.toThrow('Invalid URL');
   });
-}); 
+
+  describe('host aliases', () => {
+    it('should fold www.youtube.com to youtube.com', async () => {
+      const a = await canonicalize('https://youtube.com/watch?v=2o4IUPNYAK0');
+      const b = await canonicalize('https://www.youtube.com/watch?v=2o4IUPNYAK0');
+      expect(b.canonical).toBe('https://youtube.com/watch?v=2o4IUPNYAK0');
+      expect(b.canonical).toBe(a.canonical);
+      expect(b.hash).toBe(a.hash);
+    });
+
+    it('should fold m.youtube.com to youtube.com', async () => {
+      const result = await canonicalize('https://m.youtube.com/watch?v=abc');
+      expect(result.canonical).toBe('https://youtube.com/watch?v=abc');
+    });
+
+    it('should fold mobile.twitter.com to twitter.com', async () => {
+      const result = await canonicalize('https://mobile.twitter.com/foo/status/1');
+      expect(result.canonical).toBe('https://twitter.com/foo/status/1');
+    });
+
+    it('should fold old.reddit.com to reddit.com', async () => {
+      const result = await canonicalize('https://old.reddit.com/r/programming');
+      expect(result.canonical).toBe('https://reddit.com/r/programming');
+    });
+
+    it('should leave non-aliased hosts untouched', async () => {
+      const result = await canonicalize('https://blog.example.com/post');
+      expect(result.canonical).toBe('https://blog.example.com/post');
+    });
+
+    it('should leave generic www hosts untouched (no blanket strip)', async () => {
+      const result = await canonicalize('https://www.example.com/post');
+      expect(result.canonical).toBe('https://www.example.com/post');
+    });
+
+    it('should fold capitalized aliases (lowercase happens first)', async () => {
+      const result = await canonicalize('https://WWW.YouTube.com/watch?v=abc');
+      expect(result.canonical).toBe('https://youtube.com/watch?v=abc');
+    });
+  });
+});

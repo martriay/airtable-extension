@@ -2,6 +2,33 @@
  * URL canonicalization utilities for deduplication
  */
 
+// Site-aware host aliases. Folds known equivalent hostnames to a single canonical
+// form so e.g. www.youtube.com and youtube.com don't produce duplicate entries.
+// Intentionally explicit per-site (not a blanket www. strip) to avoid surprises
+// on sites where subdomains serve different content.
+const HOST_ALIASES: Record<string, string> = {
+  // YouTube
+  'www.youtube.com': 'youtube.com',
+  'm.youtube.com': 'youtube.com',
+  // Twitter / X
+  'www.x.com': 'x.com',
+  'mobile.x.com': 'x.com',
+  'www.twitter.com': 'twitter.com',
+  'mobile.twitter.com': 'twitter.com',
+  // Reddit
+  'www.reddit.com': 'reddit.com',
+  'old.reddit.com': 'reddit.com',
+  'new.reddit.com': 'reddit.com',
+  // Vimeo / Twitch / TikTok
+  'www.vimeo.com': 'vimeo.com',
+  'www.twitch.tv': 'twitch.tv',
+  'm.twitch.tv': 'twitch.tv',
+  'www.tiktok.com': 'tiktok.com',
+  'm.tiktok.com': 'tiktok.com',
+  // GitHub
+  'www.github.com': 'github.com',
+};
+
 /**
  * Canonicalizes a URL by normalizing scheme/host and removing tracking parameters
  * @param raw - The raw URL string to canonicalize
@@ -10,10 +37,11 @@
 export async function canonicalize(raw: string): Promise<{ canonical: string; hash: string }> {
   try {
     const url = new URL(raw);
-    
+
     // 1. Lower-case scheme and host
     url.protocol = url.protocol.toLowerCase();
     url.hostname = url.hostname.toLowerCase();
+    url.hostname = HOST_ALIASES[url.hostname] ?? url.hostname;
     
     // 2. Remove tracking parameters
     const paramsToRemove = [
