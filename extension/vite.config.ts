@@ -1,9 +1,14 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Load credentials from the project-root .env.local (gitignored, written by Vercel CLI).
+  // Empty prefix disables Vite's VITE_-only filter so unprefixed BASIC_AUTH_* vars are read.
+  const env = loadEnv(mode, resolve(__dirname, '..'), '');
+
+  return {
   plugins: [
     react(),
     {
@@ -72,8 +77,9 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
-    // Inject environment variables at build time
-    'process.env.BASIC_AUTH_USERNAME': JSON.stringify(process.env.BASIC_AUTH_USERNAME || ''),
-    'process.env.BASIC_AUTH_PASSWORD': JSON.stringify(process.env.BASIC_AUTH_PASSWORD || ''),
+    // Inject env at build time. process.env wins over .env.local so CI / shell exports still override.
+    'process.env.BASIC_AUTH_USERNAME': JSON.stringify(process.env.BASIC_AUTH_USERNAME || env.BASIC_AUTH_USERNAME || ''),
+    'process.env.BASIC_AUTH_PASSWORD': JSON.stringify(process.env.BASIC_AUTH_PASSWORD || env.BASIC_AUTH_PASSWORD || ''),
   },
+  };
 });
