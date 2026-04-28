@@ -2,14 +2,12 @@ import { beforeAll } from 'vitest';
 import { webcrypto } from 'crypto';
 
 beforeAll(() => {
-  // Mock process.env
-  global.process = {
-    env: {
-      AIRTABLE_PAT: 'test-pat',
-      AIRTABLE_BASE_ID: 'test-base',
-      AIRTABLE_TABLE: 'Units'
-    }
-  } as any;
+  // Set env vars without replacing the process object — vitest's worker pool
+  // relies on the real process (exit, signals, EventEmitter) to terminate
+  // cleanly, and wholesale-replacing it hangs tests in non-TTY runs (CI).
+  process.env.AIRTABLE_PAT = 'test-pat';
+  process.env.AIRTABLE_BASE_ID = 'test-base';
+  process.env.AIRTABLE_TABLE = 'Units';
 
   // Mock crypto for edge runtime compatibility
   if (!global.crypto) {
