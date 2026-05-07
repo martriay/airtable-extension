@@ -1,50 +1,62 @@
-<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" style="background: transparent;">
-  <!-- Fondo completo sin transparencia -->
-  <rect width="128" height="128" fill="#4F46E5"/>
-  
-  <!-- Esquinas redondeadas con máscara -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <mask id="roundedMask">
       <rect width="128" height="128" fill="white" rx="24" ry="24"/>
     </mask>
-    <!-- Gradientes -->
     <radialGradient id="bg" cx="50%" cy="40%" r="70%">
-      <stop offset="0%" style="stop-color:#4F46E5"/>
-      <stop offset="100%" style="stop-color:#6366F1"/>
+      <stop offset="0%" style="stop-color:#D1FAE5"/>
+      <stop offset="100%" style="stop-color:#A7F3D0"/>
     </radialGradient>
-    <linearGradient id="cloud" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFFFFF"/>
-      <stop offset="100%" style="stop-color:#F8FAFC"/>
+    <linearGradient id="body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#312E81"/>
+      <stop offset="100%" style="stop-color:#1E1B4B"/>
     </linearGradient>
+    <linearGradient id="slider" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E2E8F0"/>
+      <stop offset="100%" style="stop-color:#94A3B8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  
-  <!-- Todo el contenido con máscara redondeada -->
+
   <g mask="url(#roundedMask)">
-    <!-- Fondo con gradiente -->
     <rect width="128" height="128" fill="url(#bg)"/>
-    
-    <!-- Nube principal -->
-    <g>
-      <!-- Base de la nube -->
-      <ellipse cx="64" cy="58" rx="30" ry="20" fill="url(#cloud)" stroke="#E2E8F0" stroke-width="2"/>
-      <!-- Protuberancias de la nube -->
-      <circle cx="42" cy="52" r="14" fill="url(#cloud)" stroke="#E2E8F0" stroke-width="2"/>
-      <circle cx="86" cy="52" r="14" fill="url(#cloud)" stroke="#E2E8F0" stroke-width="2"/>
-      <circle cx="64" cy="42" r="18" fill="url(#cloud)" stroke="#E2E8F0" stroke-width="2"/>
+
+    <!-- Diskette: 88x88 centered at (64,64), top-right corner chamfered -->
+    <g filter="url(#shadow)">
+      <!-- Body with chamfered top-right corner -->
+      <path d="
+        M 24 28
+        Q 24 20, 32 20
+        L 96 20
+        L 104 28
+        L 104 100
+        Q 104 108, 96 108
+        L 32 108
+        Q 24 108, 24 100
+        Z
+      " fill="url(#body)"/>
+
+      <!-- Metal slider across the top -->
+      <rect x="32" y="20" width="56" height="28" fill="url(#slider)"/>
+      <!-- Slider slot -->
+      <rect x="60" y="26" width="6" height="16" rx="1" fill="#1E293B"/>
+
+      <!-- White label area -->
+      <rect x="34" y="58" width="60" height="44" rx="2" fill="#FFFFFF"/>
+
+      <!-- Label "writing" lines -->
+      <rect x="40" y="66" width="38" height="3" rx="1.5" fill="#CBD5E1"/>
+      <rect x="40" y="74" width="28" height="3" rx="1.5" fill="#CBD5E1"/>
+
+      <!-- Green checkmark on label -->
+      <path d="M 42 90 L 50 96 L 64 84"
+            stroke="#10B981" stroke-width="4"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
     </g>
-    
-    <!-- Checkmark -->
-    <path d="M50 62 L58 70 L80 52" stroke="#10B981" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    
-    <!-- Estrellitas -->
-    <circle cx="30" cy="32" r="2.5" fill="#FDE047"/>
-    <circle cx="98" cy="36" r="2" fill="#FDE047"/>
-    <circle cx="22" cy="78" r="2" fill="#FDE047"/>
-    <circle cx="106" cy="82" r="2.5" fill="#FDE047"/>
-    
-    <!-- Puntos decorativos -->
-    <circle cx="64" cy="88" r="3" fill="#FFFFFF" opacity="0.8"/>
-    <circle cx="54" cy="92" r="2" fill="#FFFFFF" opacity="0.6"/>
-    <circle cx="74" cy="92" r="2" fill="#FFFFFF" opacity="0.6"/>
   </g>
 </svg>
